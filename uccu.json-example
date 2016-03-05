@@ -1,0 +1,27 @@
+{
+	"EnableLang":true,
+	"LangFile":"zh_TW.qm",
+	"EnableConsole":true,
+	"EnableLog":true,
+	"CategoryMode":{
+		"default":"DCWF",
+		"qt.qpa.events":"CWF",
+		"qt.qpa.input.tablet":"CWF",
+		"qt.qpa.windows":"CWF",
+		"qt.qpa.mime":"CWF",
+		"qt.qpa.fonts":"CWF",
+		"qt.qpa.backingstore":"CWF",
+		"qt.qpa.gl":"DCWF",
+		"qt.quick.dialogs.registration":"CWF",
+		"qt.scenegraph.info":"DCWF",
+		"qt.scenegraph.renderloop":"CWF",
+		"qt.quick.focus":"CWF",
+		"qt.quick.mouse":"CWF",
+		"qt.scenegraph.time.renderloop":"CWF",
+		"qt.quick.dirty":"CWF",
+		"qt.scenegraph.time.renderer":"CWF",
+		"qt.scenegraph.time.glyph":"CWF",
+		"qt.scenegraph.time.compilation":"CWF",
+		"qt.scenegraph.time.texture":"CWF"
+	}
+}
