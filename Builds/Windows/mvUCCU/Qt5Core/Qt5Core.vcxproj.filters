@@ -23,8 +23,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Qt5Core.def">
-      <Filter>Resource Files</Filter>
-    </None>
+    <ClInclude Include="..\..\..\..\Projects\Qt5Core\src\Qt5Wrapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Projects\Qt5Core\src\Qt5Core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

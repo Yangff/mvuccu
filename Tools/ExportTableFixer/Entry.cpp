@@ -63,12 +63,13 @@ public:
 	string GetFunctionName(DWORD id) {
 		auto export_dir = GetExportDirectory();
 		auto names = (char**)rva2va(export_dir->AddressOfNames);
-		return string(names[id]);
+		void *ptr = rva2va((ULONG)names[id]);
+		return string((char*)ptr);
 	}
 
 	DWORD GetOrdId(DWORD id) {
 		auto export_dir = GetExportDirectory();
-		auto OrdId = (DWORD*)rva2va(export_dir->AddressOfNameOrdinals);
+		auto OrdId = (USHORT*)rva2va(export_dir->AddressOfNameOrdinals);
 		return OrdId[id];
 	}
 
@@ -105,7 +106,7 @@ public:
 			size += GetFunctionName(i).size() + 1;
 		for (auto x : forwarding_map)
 			size += x.first.size() + 1 + x.second.size() + 1;
-		size += (orgFunctions.size() + forwarding_map.size()) * sizeof DWORD;
+		size += (orgFunctions.size() + forwarding_map.size()) * 2 * sizeof DWORD;
 
 		PIMAGE_FILE_HEADER pFileNt = &(_ntheader->FileHeader);
 		PIMAGE_OPTIONAL_HEADER pOptNt = &(_ntheader->OptionalHeader);
@@ -115,33 +116,35 @@ public:
 		DWORD secbase = 0;
 		if ((dwLengthOfAllSection + sizeof(IMAGE_SECTION_HEADER) <= dwAligentSectionSize)) {
 			const wchar_t *pszName = L".nsec"; DWORD dwNameLen = 5;
-			PIMAGE_SECTION_HEADER  pNewSection = &(IMAGE_FIRST_SECTION(_ntheader)[pFileNt->NumberOfSections]);
+			PIMAGE_SECTION_HEADER  nesSection = &(IMAGE_FIRST_SECTION(_ntheader)[pFileNt->NumberOfSections]);
 			WideCharToMultiByte(CP_ACP, 0,
 				pszName, dwNameLen,
-				(char*)pNewSection->Name, dwNameLen,
+				(char*)nesSection->Name, dwNameLen,
 				NULL, NULL);
-			pNewSection->Name[dwNameLen] = 0;
+			nesSection->Name[dwNameLen] = 0;
 			
-			pNewSection->Misc.VirtualSize = size2AligentSize(size, pOptNt->SectionAlignment);
-			pNewSection->SizeOfRawData = size2AligentSize(size, pOptNt->FileAlignment);
+			nesSection->Misc.VirtualSize = size2AligentSize(size, pOptNt->SectionAlignment);
+			nesSection->SizeOfRawData = size2AligentSize(size, pOptNt->FileAlignment);
 			PIMAGE_SECTION_HEADER pOldSec = &(IMAGE_FIRST_SECTION(_ntheader)[pFileNt->NumberOfSections - 1]);
-			pNewSection->PointerToRawData = pOldSec->PointerToRawData + pOldSec->SizeOfRawData;
-			pNewSection->VirtualAddress = size2AligentSize(pOldSec->VirtualAddress + pOldSec->SizeOfRawData, pOptNt->SectionAlignment);
+			nesSection->PointerToRawData = pOldSec->PointerToRawData + pOldSec->SizeOfRawData;
+			nesSection->VirtualAddress = size2AligentSize(pOldSec->VirtualAddress + pOldSec->SizeOfRawData, pOptNt->SectionAlignment);
 			++pFileNt->NumberOfSections; pOptNt->SizeOfImage += size2AligentSize(size, pOptNt->SectionAlignment);
 			DWORD  dwSecAligSize = size2AligentSize(size, pOptNt->FileAlignment);
-			char* lpNewFile = new char[fsize + dwSecAligSize];
+			char* lpNewFile = (char*)VirtualAlloc(NULL, fsize + dwSecAligSize, MEM_COMMIT, PAGE_READWRITE);//new char[fsize + dwSecAligSize];
 			memcpy_s(lpNewFile, fsize + dwSecAligSize, base, fsize);
 			memset(lpNewFile + fsize, 0, dwSecAligSize);
 
-			secbase = pNewSection->PointerToRawData;
-			delete[] base;
+			secbase = nesSection->PointerToRawData;
+
+			auto oldBase = base;
+
 			base = lpNewFile;
 			_dosHeader = (PIMAGE_DOS_HEADER)base;
 			_ntheader = (PIMAGE_NT_HEADERS32)((long)_dosHeader + (long)_dosHeader->e_lfanew);
 
 
 			auto imageStart = ((long)base + secbase);
-			auto rvaStart = pNewSection->VirtualAddress;
+			auto rvaStart = nesSection->VirtualAddress;
 
 			PIMAGE_EXPORT_DIRECTORY nDic = (PIMAGE_EXPORT_DIRECTORY)imageStart;
 			imageStart += sizeof IMAGE_EXPORT_DIRECTORY;
@@ -157,10 +160,10 @@ public:
 			memcpy_s(name, fname.size() + 1, fname.c_str(), fname.size());
 			name[fname.size()] = 0;
 
-			DWORD* ord = (DWORD*)imageStart;
+			USHORT* ord = (USHORT*)imageStart;
 			nDic->AddressOfNameOrdinals = rvaStart;
-			imageStart += (orgFunctions.size() + forwarding_map.size()) * sizeof DWORD;
-			rvaStart += (orgFunctions.size() + forwarding_map.size()) * sizeof DWORD;
+			imageStart += (orgFunctions.size() + forwarding_map.size()) * sizeof USHORT;
+			rvaStart += (orgFunctions.size() + forwarding_map.size()) * sizeof USHORT;
 			
 			for (int i = 1; i <= (orgFunctions.size() + forwarding_map.size()); i++)
 				ord[i - 1] = i;
@@ -178,8 +181,7 @@ public:
 				for (auto x : orgFunctions) {
 					char * buff = (char*)imageStart; names[i] = rvaStart; 
 					imageStart += x.first.size() + 1; rvaStart += x.first.size() + 1;
-
-					memcpy_s(buff, x.first.size() + 1, x.first.c_str(), x.first.size());
+					memcpy(buff, x.first.c_str(), x.first.size());
 					buff[x.first.size()] = 0;
 					funcs[i] = x.second;
 					i++;
@@ -187,12 +189,12 @@ public:
 				for (auto x : forwarding_map) {
 					char * buff = (char*)imageStart; 
 					names[i] = rvaStart; imageStart += x.first.size() + 1; rvaStart += x.first.size() + 1;
-					memcpy_s(buff, x.first.size() + 1, x.first.c_str(), x.first.size());
+					memcpy(buff, x.first.c_str(), x.first.size());
 					buff[x.first.size()] = 0;
 					
 					buff = (char*)imageStart;
 					funcs[i] = rvaStart; imageStart += x.second.size() + 1; rvaStart += x.second.size() + 1;
-					memcpy_s(buff, x.second.size() + 1, x.second.c_str(), x.second.size());
+					memcpy(buff, x.second.c_str(), x.second.size());
 					buff[x.second.size()] = 0;
 
 					i++;
@@ -200,7 +202,9 @@ public:
 			}
 
 			_ntheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = size;
-			_ntheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = pNewSection->VirtualAddress;
+			_ntheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = nesSection->VirtualAddress;
+
+			VirtualFree(oldBase, fsize, MEM_DECOMMIT); oldBase = NULL;
 
 			auto hNew = CreateFile(fname.c_str(), GENERIC_READ | GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 			DWORD writed;
@@ -212,18 +216,19 @@ public:
 };
 
 int main(int argc, char** argv) {
-	if (argc != 3) {
+	/*if (argc != 3) {
 		printf("ExportTableFixer.exe FileToFix FileToDuplicate");
 		return -1;
-	}
-	string org(argv[1]);
-	string source(argv[2]);
+	}*/
+
+	string org("C:\\Users\\SHERMAN\\Documents\\Projects\\mvuccu\\Build-results\\Windows\\Qt5Core"); //(argv[1]);
+	string source("C:\\Users\\SHERMAN\\Documents\\Projects\\mvuccu\\Build-results\\Windows\\Qt5CoreOLD"); //(argv[2]);
 
 	PE orgPE(org + ".dll"), srcPE(source + ".dll");
 
 	int cnt = srcPE.GetFunctionNameCount();
 	for (int i = 0; i < cnt; i++) {
-		orgPE.AddForwarding(srcPE.GetFunctionName(i), source);
+		orgPE.AddForwarding(srcPE.GetFunctionName(i), "Qt5CoreOLD");
 	}
 
 	orgPE.dump(org + ".dll");
