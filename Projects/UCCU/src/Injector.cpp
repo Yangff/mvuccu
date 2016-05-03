@@ -8,7 +8,7 @@
 #include <QtCore/qfileinfo.h>
 #include <QtCore/qdiriterator.h>
 #include <QtCore/qloggingcategory.h>
-#include <QtCore/5.4.1/QtCore/private/qhooks_p.h>
+//#include <QtCore/5.4.1/QtCore/private/qhooks_p.h>
 
 // #include "QmlErrorHandler.h"
 #include "uccuConfig.h"
@@ -18,7 +18,7 @@
 Injector* Injector::ins = NULL;
 // QmlErrorHandler *qeh;
 QMap<QString, int> *categoryEnabler;
-QSet<QObject*> *objects;
+//QSet<QObject*> *objects;
 bool bQappTriggered;
 
 bool wrap_qRegisterResourceData(
@@ -27,7 +27,6 @@ bool wrap_qRegisterResourceData(
 	const unsigned char *name,
 	const unsigned char *data
 	) {
-
 	bool succ = Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
 	if (succ && QDir(":/qml").exists() && ModManager::instance().WaitingForRes()) {
 		unsigned char * new_data = ModManager::instance().RunMods();
@@ -47,7 +46,7 @@ void categoryFilterForceLog(QLoggingCategory *category) {
 	category->setEnabled(QtWarningMsg, x & 4);
 	category->setEnabled(QtFatalMsg, x & 8);
 }
-
+/*
 static void objectAddHook(QObject* o) {
 	objects->insert(o);
 }
@@ -55,7 +54,7 @@ static void objectAddHook(QObject* o) {
 static void objectRemoveHook(QObject* o) {
 	objects->remove(o);
 }
-
+*/
 class WrappedLoad {
 public:
 	bool load(const QString & filename,
@@ -70,18 +69,18 @@ public:
 				}
 			}*/
 
-			objects->clear();
+			//objects->clear();
 
-			qtHookData[QHooks::AddQObject] = qtHookData[QHooks::RemoveQObject] = 0;
-			qtHookData[QHooks::RemoveQObject] = qtHookData[QHooks::RemoveQObject] = 0;
+			//qtHookData[QHooks::AddQObject] = qtHookData[QHooks::RemoveQObject] = 0;
+			//qtHookData[QHooks::RemoveQObject] = qtHookData[QHooks::RemoveQObject] = 0;
 
 			qInstallMessageHandler(&LogManager::qtMessageHandler);
 		}
 
-		if (filename.endsWith("en_US") && uccuConfig::instance().enableLanguageFix()) {
+		/*if (filename.endsWith("en_US") && uccuConfig::instance().enableLanguageFix()) {
 			bool b = Injector::instance().Wrapper->Call_QTranslator_load(this, uccuConfig::instance().GetLanguageFile(), directory, search_delimiters, suffix);
 			return b;
-		}
+		}*/
 		return Injector::instance().Wrapper->Call_QTranslator_load(this, filename, directory, search_delimiters, suffix);
 	}
 };
@@ -91,25 +90,27 @@ bool Injector::Init(IQt5Wrpaaer* wrapper) {
 	wrapper->Set_qRegisterResourceData(wrap_qRegisterResourceData);
 	auto addr = &WrappedLoad::load;
 	wrapper->Set_QTranslator_load(*reinterpret_cast<p_QTranslator_load*>(&addr)); // mdzz
+	Wrapper = wrapper;
 
 	// step2. init
-	qInstallMessageHandler(&platformQtMessageHandler);
+	//qInstallMessageHandler(&platformQtMessageHandler);
 
-	QLoggingCategory::installFilter(categoryFilterForceLog);
+	//QLoggingCategory::installFilter(categoryFilterForceLog);
 
 //	qeh = new QmlErrorHandler;
-	objects = new QSet<QObject*>;
-	categoryEnabler = new QMap<QString, int>;
+	//objects = new QSet<QObject*>;
+	//categoryEnabler = new QMap<QString, int>;
 
-	qtHookData[QHooks::AddQObject] = reinterpret_cast<quintptr>(&objectAddHook);
-	qtHookData[QHooks::RemoveQObject] = reinterpret_cast<quintptr>(&objectRemoveHook);
+	//qtHookData[QHooks::AddQObject] = reinterpret_cast<quintptr>(&objectAddHook);
+	//qtHookData[QHooks::RemoveQObject] = reinterpret_cast<quintptr>(&objectRemoveHook);
 
 	bQappTriggered = false;
 
+	return true;
 }
 
 bool Injector::OnExit() {
 //	delete qeh;
-	delete objects;
+//	delete objects;
 	return true;
 }

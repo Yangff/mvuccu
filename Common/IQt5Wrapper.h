@@ -41,4 +41,4 @@ public:
 		const unsigned char *data) = NULL;
 };
 
-typedef bool(__stdcall *pInitUCCU)(IQt5Wrpaaer *);
+typedef bool (__stdcall*pInitUCCU)(IQt5Wrpaaer *);

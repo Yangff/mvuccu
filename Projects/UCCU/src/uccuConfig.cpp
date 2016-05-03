@@ -25,10 +25,15 @@ int parseFlagString(QString s) {
 }
 
 uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enableLogFile(0) {
+	// strange bug
+	// vs said it's esp changed.
+	// wired...
+
 	QFile f(cfgFile);
 	if (f.open(QFileDevice::OpenModeFlag::ReadOnly)) {
 		QJsonParseError err;
-		auto doc = QJsonDocument::fromJson(f.readAll(), &err);
+		auto x = f.readAll();
+		auto doc = QJsonDocument::fromJson(x, &err);
 		if (err.error == QJsonParseError::NoError) {
 			auto obj = doc.object();
 			if (obj["EnableLang"].isBool() && (enableLang = obj["EnableLang"].toBool()))

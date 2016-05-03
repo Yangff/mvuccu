@@ -4,7 +4,7 @@
 
 class uccuConfig {
 private:
-	uccuConfig(QString cfgFile = "uccu.json");
+	uccuConfig(QString cfgFile = "mvuccu/uccu.json");
 	static uccuConfig *_instance;
 public:
 	static uccuConfig& instance() {

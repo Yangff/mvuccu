@@ -23,6 +23,7 @@ wchar_t* getTag(QtMsgType type) {
 }
 
 void output(wchar_t *tag, QString msg) {
+	/*
 	if (uccuConfig::instance().enableLog() && !fLog) {
 		fwprintf(stdout, (QDir::tempPath() + "/RMMVLog.log\n").toStdWString().c_str());
 		fLog = _wfopen((QDir::tempPath() + "/RMMVLog.log").toStdWString().c_str(), L"wb");
@@ -45,6 +46,7 @@ void output(wchar_t *tag, QString msg) {
 		}
 	}
 	if (uccuConfig::instance().enableLog()) fflush(fLog);
+	*/
 }
 
 void platformQtMessageHandler(QtMsgType type, const QMessageLogContext & context, const QString & msg) {
