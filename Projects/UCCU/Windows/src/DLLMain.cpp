@@ -17,8 +17,8 @@ BOOL WINAPI DllMain(
 	}
 
 	if (fdwReason == DLL_PROCESS_DETACH) {
-		/*if (uccuConfig::instance().enableConsoleWindow())
-			FreeConsole();*/
+		if (uccuConfig::instance().enableConsoleWindow())
+			FreeConsole();
 		return Injector::instance().OnExit();
 	}
 
@@ -26,10 +26,10 @@ BOOL WINAPI DllMain(
 }
 
 bool __stdcall InitUCCU(IQt5Wrpaaer * wrap) {
-	/*if (uccuConfig::instance().enableConsoleWindow()) {
+	if (uccuConfig::instance().enableConsoleWindow()) {
 		AllocConsole();
 		freopen("CONOUT$", "w+t", stdout);
-	}*/
+	}
 	return Injector::instance().Init(wrap);
 }
 

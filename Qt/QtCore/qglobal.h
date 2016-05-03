@@ -37,11 +37,11 @@
 
 #include <stddef.h>
 
-#define QT_VERSION_STR   "5.4.1"
+#define QT_VERSION_STR   "5.4.2"
 /*
    QT_VERSION is (major << 16) + (minor << 8) + patch.
 */
-#define QT_VERSION 0x050401
+#define QT_VERSION 0x050402
 /*
    can be used like #if (QT_VERSION >= QT_VERSION_CHECK(4, 4, 0))
 */
@@ -865,6 +865,7 @@ Q_CORE_EXPORT void qFreeAligned(void *ptr);
 /* make use of decltype or GCC's __typeof__ extension */
 template <typename T>
 class QForeachContainer {
+    QForeachContainer &operator=(const QForeachContainer &) Q_DECL_EQ_DELETE;
 public:
     inline QForeachContainer(const T& t) : c(t), i(c.begin()), e(c.end()), control(1) { }
     const T c;
@@ -1046,9 +1047,10 @@ Q_CORE_EXPORT int qrand();
 #  define QT_NO_SHAREDMEMORY
 #endif
 
-#if !defined(QT_BOOTSTRAPPED) && defined(QT_REDUCE_RELOCATIONS) && defined(__ELF__) && !defined(__PIC__) && !defined(__PIE__)
+#if !defined(QT_BOOTSTRAPPED) && defined(QT_REDUCE_RELOCATIONS) && defined(__ELF__) && \
+    (!defined(__PIC__) || (defined(__PIE__) && defined(Q_CC_GNU) && Q_CC_GNU >= 500))
 #  error "You must build your code with position independent code if Qt was built with -reduce-relocations. "\
-         "Compile your code with -fPIC or -fPIE."
+         "Compile your code with -fPIC (-fPIE is not enough)."
 #endif
 
 namespace QtPrivate {

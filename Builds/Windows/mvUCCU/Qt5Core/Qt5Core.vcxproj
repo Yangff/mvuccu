@@ -99,19 +99,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
     <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\5.4.2;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
     <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
     <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\5.4.2;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
     <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release(vs13)|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
     <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\5.4.2;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
     <SourcePath>$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
