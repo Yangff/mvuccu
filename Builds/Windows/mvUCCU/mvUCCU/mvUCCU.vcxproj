@@ -33,20 +33,20 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release(vs13)|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -98,12 +98,18 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\Common;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\Common;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release(vs13)|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(SolutionDir)..\..\..\Binary\Windows\Common;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -172,6 +178,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\Injector.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

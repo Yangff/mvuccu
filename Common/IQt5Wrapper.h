@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include <QtCore/qstring.h>
 
 typedef bool(__thiscall *p_QTranslator_load)(
@@ -33,4 +36,4 @@ public:
 		const unsigned char *data) = NULL;
 };
 
-typedef bool(__stdcall *InitUCCU)(const IQt5Wrpaaer *);
+typedef bool(__stdcall *pInitUCCU)(const IQt5Wrpaaer *);

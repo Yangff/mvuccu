@@ -23,7 +23,7 @@ BOOL WINAPI DllMain(
 			auto o_qRegisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qRegisterResourceData@@YA_NHPBE00@Z");
 
 			wrapper = new CQt5WrpaaerV1(o_QTranslator_load, o_qRegisterResourceData);
-			InitUCCU initfunc = (InitUCCU)GetProcAddress(hUCCU, "InitUCCU");
+			pInitUCCU initfunc = (pInitUCCU)GetProcAddress(hUCCU, "InitUCCU");
 			if (initfunc(wrapper)) {
 				return TRUE;
 			} else return FALSE;
