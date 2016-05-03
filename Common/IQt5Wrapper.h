@@ -34,6 +34,11 @@ public:
 		const unsigned char *tree,
 		const unsigned char *name,
 		const unsigned char *data) = NULL;
+
+	virtual bool Call_qUnregisterResourceData(int version,
+		const unsigned char *tree,
+		const unsigned char *name,
+		const unsigned char *data) = NULL;
 };
 
-typedef bool(__stdcall *pInitUCCU)(const IQt5Wrpaaer *);
+typedef bool(__stdcall *pInitUCCU)(IQt5Wrpaaer *);

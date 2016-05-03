@@ -4,11 +4,14 @@
 
 class Injector {
 public:
-	static Injector *instance() { return ins ? ins : ins = new Injector(); }
+	static Injector& instance() { return *(ins ? ins : ins = new Injector()); }
 private:
-	Injector();
+	Injector() {};
 private:
 	static Injector* ins;
 public:
-	bool Init(const IQt5Wrpaaer* wrapper);
+	bool Init(IQt5Wrpaaer* wrapper);
+	bool OnExit();
+	bool bQappTriggered;
+	IQt5Wrpaaer* Wrapper;
 };

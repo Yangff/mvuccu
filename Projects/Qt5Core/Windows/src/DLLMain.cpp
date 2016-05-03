@@ -21,8 +21,9 @@ BOOL WINAPI DllMain(
 		if (hQt5Core && hUCCU) {
 			auto o_QTranslator_load = (p_QTranslator_load)GetProcAddress(hQt5Core, "?load@QTranslator@@QAE_NABVQString@@000@Z");
 			auto o_qRegisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qRegisterResourceData@@YA_NHPBE00@Z");
+			auto o_qUnregisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qUnregisterResourceData@@YA_NHPBE00@Z");
 
-			wrapper = new CQt5WrpaaerV1(o_QTranslator_load, o_qRegisterResourceData);
+			wrapper = new CQt5WrpaaerV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData);
 			pInitUCCU initfunc = (pInitUCCU)GetProcAddress(hUCCU, "InitUCCU");
 			if (initfunc(wrapper)) {
 				return TRUE;

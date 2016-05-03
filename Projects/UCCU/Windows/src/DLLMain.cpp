@@ -13,14 +13,14 @@ BOOL WINAPI DllMain(
 	}
 
 	if (fdwReason == DLL_PROCESS_DETACH) {
-		return TRUE;
+		return Injector::instance().OnExit();
 	}
 
 	return TRUE;
 }
 
-bool __stdcall InitUCCU(const IQt5Wrpaaer * wrap) {
-	return Injector::instance()->Init(wrap);
+bool __stdcall InitUCCU(IQt5Wrpaaer * wrap) {
+	return Injector::instance().Init(wrap);
 }
 
 int GetUCCUVersion() {
