@@ -123,6 +123,8 @@
     <Link>
       <AdditionalDependencies>Qt5CoreOLD.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>./5.4.2/Qt5Core.def</ModuleDefinitionFile>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -150,6 +152,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>Qt5CoreOLD.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>./5.4.2/Qt5Core.def</ModuleDefinitionFile>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release(vs13)|Win32'">
@@ -165,6 +169,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>Qt5CoreOLD.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>./5.4.2/Qt5Core.def</ModuleDefinitionFile>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

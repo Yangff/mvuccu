@@ -10,13 +10,13 @@
 #include <QtCore/qloggingcategory.h>
 #include <QtCore/5.4.1/QtCore/private/qhooks_p.h>
 
-#include "QmlErrorHandler.h"
+// #include "QmlErrorHandler.h"
 #include "uccuConfig.h"
 #include "LogManager.h"
 #include "ModManager.h"
 
 Injector* Injector::ins = NULL;
-QmlErrorHandler *qeh;
+// QmlErrorHandler *qeh;
 QMap<QString, int> *categoryEnabler;
 QSet<QObject*> *objects;
 bool bQappTriggered;
@@ -64,11 +64,11 @@ public:
 		const QString & suffix) {
 		if (!Injector::instance().bQappTriggered) {
 			Injector::instance().bQappTriggered = true;
-			for (auto x : *objects) {
+			/*for (auto x : *objects) {
 				if (QQmlApplicationEngine *qapp = qobject_cast<QQmlApplicationEngine*>(x)) {
 					qeh->Start(qapp);
 				}
-			}
+			}*/
 
 			objects->clear();
 
@@ -97,7 +97,7 @@ bool Injector::Init(IQt5Wrpaaer* wrapper) {
 
 	QLoggingCategory::installFilter(categoryFilterForceLog);
 
-	qeh = new QmlErrorHandler;
+//	qeh = new QmlErrorHandler;
 	objects = new QSet<QObject*>;
 	categoryEnabler = new QMap<QString, int>;
 
@@ -109,7 +109,7 @@ bool Injector::Init(IQt5Wrpaaer* wrapper) {
 }
 
 bool Injector::OnExit() {
-	delete qeh;
+//	delete qeh;
 	delete objects;
 	return true;
 }
