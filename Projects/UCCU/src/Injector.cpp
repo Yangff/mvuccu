@@ -29,12 +29,15 @@ bool wrap_qRegisterResourceData(
 	) {
 	bool succ = Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
 	if (succ && QDir(":/qml").exists() && ModManager::instance().WaitingForRes()) {
-		unsigned char * new_data = ModManager::instance().RunMods();
-		Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
-		if (!QResource::registerResource(new_data)) {
-			LogManager::instance().log("Failed to modify resource");
+		if (unsigned char * new_data = ModManager::instance().RunMods()) {
+			Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
+			if (!QResource::registerResource(new_data)) {
+				LogManager::instance().log("Failed to modify resource");
+			}
+			return Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
+		} else {
+			LogManager::instance().err("Cannot Load Mods");
 		}
-		return Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
 	}
 	return succ;
 }
@@ -93,9 +96,9 @@ bool Injector::Init(IQt5Wrpaaer* wrapper) {
 	Wrapper = wrapper;
 
 	// step2. init
-	//qInstallMessageHandler(&platformQtMessageHandler);
+	qInstallMessageHandler(&platformQtMessageHandler);
 
-	//QLoggingCategory::installFilter(categoryFilterForceLog);
+	QLoggingCategory::installFilter(categoryFilterForceLog);
 
 //	qeh = new QmlErrorHandler;
 	//objects = new QSet<QObject*>;

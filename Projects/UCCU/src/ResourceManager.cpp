@@ -10,9 +10,8 @@
 #include <QtCore/qstack.h>
 #include <QtCore/qbytearray.h>
 
-
 #include "ResourceManager.h"
-#include "ModLogger.h"
+#include "LogManager.h"
 #include "ModManager.h"
 
 ResourceManager *ResourceManager::_instance;
@@ -48,29 +47,6 @@ public:
 };
 
 /* Outside API */
-
-unsigned char* ResourceManager::startResourceHook()
-{
-    _waitingForRes = false;
-    
-	AddFile(":/mod/version", QByteArray("2001", 4));
-
-	ModManager::GetInstance().RunLoader();
-    
-    QByteArray & x = finish();
-
-	int size = x.size();
-    
-    unsigned char * buff = new unsigned char[size];
-	memset(buff, 0, size);
-    memcpy(buff, x.constData(), sizeof(char) * x.size());
-
-	if (m_root) {
-		delete m_root;
-		m_root = NULL;
-	}
-    return buff;
-}
 
 const QByteArray ResourceManager::GetFileContent(QString path)
 {
@@ -128,11 +104,6 @@ bool ResourceManager::AddFile(QString path, const QByteArray &data)
 	s->m_parent = parent;
 	parent->m_children.insertMulti(filename, s);
 	return true;
-}
-
-bool ResourceManager::WaitingForRes()
-{
-    return _waitingForRes;
 }
 
 
@@ -309,11 +280,16 @@ QByteArray & ResourceManager::finish()
 	p[i++] = (m_namesOffset >> 16) & 0xff;
 	p[i++] = (m_namesOffset >> 8) & 0xff;
 	p[i++] = (m_namesOffset >> 0) & 0xff;
+	
+	if (m_root) {
+		delete m_root;
+		m_root = NULL;
+	}
 
 	return m_data;
 }
 
-ResourceManager::ResourceManager(): _waitingForRes(true) {
+ResourceManager::ResourceManager() {
 	m_root = NULL;
 	m_treeOffset = m_dataOffset = m_namesOffset = 0;
 	writeStr("qres");

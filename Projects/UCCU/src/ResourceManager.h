@@ -14,28 +14,22 @@ private:
 	QByteArray m_data;
 	quint32 m_treeOffset, m_dataOffset, m_namesOffset;
 	filenode *m_root;
-
-	bool _waitingForRes;
     
 	ResourceManager();
 
 public:
-	static ResourceManager & GetInstance() {
+	static ResourceManager & instance() {
 		if (!_instance) {
 			return *(_instance = new ResourceManager());
 		} else return *_instance;
 	};
-
-	unsigned char* startResourceHook();
 
 	const QByteArray GetFileContent(QString path);
 	// bool LockQResource(QString path, int lockId = 0);
 	// bool UnlockQResource(QString path, int lockId);
 	bool UpdateFileContent(QString path, const QByteArray &content /* , int lockId = 0 */);
 	bool AddFile(QString path, const QByteArray &data /* , int lockId = 0 */ );
-	bool WaitingForRes();
-
-
+	
 	////// rcc
 	
 	void write16(quint16 number);

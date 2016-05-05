@@ -13,12 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\Platformrealted">
+      <UniqueIdentifier>{5cd0db84-3ae0-4c9b-8aea-0208d9556adc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\Injector.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\uccuConfig.cpp">
@@ -27,10 +27,19 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\LogManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp">
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ModManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ModManager.cpp">
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp">
+      <Filter>Source Files\Platformrealted</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp">
+      <Filter>Source Files\Platformrealted</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ResourceManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -45,6 +54,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ModManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\ResourceManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -98,17 +98,17 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
-    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(SolutionDir)..\..\..\JxCore;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
-    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(SolutionDir)..\..\..\JxCore;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release(vs13)|Win32'">
     <OutDir>$(SolutionDir)$(Configuration)\../../../../Build-results/Windows\</OutDir>
-    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\..\..\Common;$(SolutionDir)..\..\..\Qt;$(SolutionDir)..\..\..\JxCore;$(IncludePath)</IncludePath>
     <LibraryPath>$(SolutionDir)..\..\..\Binary\Windows;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -119,7 +119,7 @@
       <BufferSecurityCheck>true</BufferSecurityCheck>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Qt5Core.lib;jx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -142,7 +142,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Qt5Core.lib;jx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -158,7 +158,7 @@
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>Qt5Core.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Qt5Core.lib;jx.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -192,6 +192,8 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\Injector.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\LogManager.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ModManager.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ResourceManager.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\uccuConfig.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp" />
@@ -200,6 +202,8 @@
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\LogManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ModManager.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\ResourceManager.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\uccuConfig.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
