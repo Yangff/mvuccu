@@ -232,3 +232,5 @@ _Pvt_Extensions
 Build-results
 
 *.opendb
+
+*.tlog
