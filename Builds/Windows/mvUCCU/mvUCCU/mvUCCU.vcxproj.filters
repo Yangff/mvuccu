@@ -42,6 +42,9 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\Mod.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h">
@@ -60,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\Mod.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

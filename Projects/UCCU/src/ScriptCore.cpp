@@ -1,5 +1,7 @@
 #include "ScriptCore.h"
 #include "uccuConfig.h"
+#include "LogManager.h"
+#include "ModManager.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +36,11 @@ ScriptCore::ScriptCore() {
 }
 
 void ScriptCore::RunScript() {
+	// Step1. Prepare Mods list
+
+
+	// Step2. Init Js Cxt
+
 	v8::V8::InitializeICU();
 	v8::V8::InitializeExternalStartupData("RPGMV.exe");
 	v8::Platform* platform = v8::platform::CreateDefaultPlatform();
@@ -45,8 +52,15 @@ void ScriptCore::RunScript() {
 	create_params.array_buffer_allocator = &array_buffer_allocator;
 	v8::Isolate* isolate = v8::Isolate::New(create_params);
 	{
+		// Step3. Init C++/JS Objects
+
+		// Step4. Excute loader, pass uccu namespace and returns $loader
+
+		// Step5 Run Mods, do $loader.load() -> succ/failed
 
 	}
+
+	// Step6. Finalized
 	isolate->Dispose();
 	v8::V8::Dispose();
 	v8::V8::ShutdownPlatform();

@@ -263,6 +263,7 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\uccuConfig.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\Mod.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h" />
@@ -271,6 +272,7 @@
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ResourceManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\uccuConfig.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\Mod.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
