@@ -5,7 +5,7 @@
 #include <QtCore/Qlist>
 
 enum Requirement {
-	Equal, Less, Greater, Range
+	Equal, Less, Greater
 };
 
 class Version {
@@ -14,7 +14,6 @@ public:
 	
 public:
 	bool match(const Requirement&, const Version a) const;
-	bool range(const Version a, const Version b) const;
 };
 
 class Dependence {
@@ -24,11 +23,13 @@ class Dependence {
 
 class Mod {
 public:
-	QString modName;
-	Version modVersion;
-	QDir modPath;
+	QString name;
+	Version version;
+	QDir path;
 	QList<Dependence> deps;
-
+	
 public:
 	bool check();
+	Mod(QDir modPath);
+	bool isMod();
 };

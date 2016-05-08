@@ -12,7 +12,6 @@ private:
 
 	bool m_bWaitingForRes;
 
-	QMap<QString, Mod> m_mMods;
 public:
 	QString rootPath = "./mvuccu/mods/";
 
@@ -25,4 +24,5 @@ public:
 
 	bool WaitingForRes();
 	unsigned char* RunMods();
+	QMap<QString, Mod> LoadMods();
 };

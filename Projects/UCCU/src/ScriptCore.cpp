@@ -37,7 +37,7 @@ ScriptCore::ScriptCore() {
 
 void ScriptCore::RunScript() {
 	// Step1. Prepare Mods list
-
+	auto mods = ModManager::instance().LoadMods();
 
 	// Step2. Init Js Cxt
 
@@ -65,4 +65,19 @@ void ScriptCore::RunScript() {
 	v8::V8::Dispose();
 	v8::V8::ShutdownPlatform();
 	delete platform;
+	
 }
+
+
+/*
+	* functions
+	* may move to v8Library ?
+*/
+
+/* native_require */
+
+/* native_print */
+
+/* native fs */
+
+/* Init_Natives */

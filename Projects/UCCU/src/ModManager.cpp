@@ -29,6 +29,25 @@ unsigned char * ModManager::RunMods() {
 	return buff;
 }
 
+QMap<QString, Mod> ModManager::LoadMods()
+{
+	QMap<QString, Mod> mods;
+	QDir dir(rootPath);
+	if (!dir.exists()) {
+		dir.mkdir(".");
+		return mods;
+	}
+	for (auto x : dir.entryInfoList()) {
+		if (x.isDir()) {
+			Mod mod(x.absoluteFilePath());
+			if (mod.isMod()) {
+				mods[mod.name] = mod;
+			}
+		}
+	}
+	return mods;
+}
+
 ModManager::ModManager() {
 	m_bWaitingForRes = false; // TODO: Make this be true;
 }
