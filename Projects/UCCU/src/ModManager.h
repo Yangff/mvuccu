@@ -25,4 +25,5 @@ public:
 	bool WaitingForRes();
 	unsigned char* RunMods();
 	QMap<QString, Mod> LoadMods();
+	Version GetUCCUVersion();
 };

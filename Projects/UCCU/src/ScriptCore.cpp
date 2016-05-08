@@ -10,6 +10,7 @@
 #include <libplatform/libplatform.h>
 #include <v8.h>
 
+/*
 #pragma comment(lib,"icui18n.lib")
 #pragma comment(lib,"v8_libplatform.lib")
 #pragma comment(lib,"v8_libbase.lib")
@@ -19,6 +20,7 @@
 #pragma comment(lib,"v8_base_3.lib")
 #pragma comment(lib,"v8_nosnapshot.lib")
 #pragma comment(lib,"icuuc.lib")
+*/
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 public:
@@ -38,7 +40,14 @@ ScriptCore::ScriptCore() {
 void ScriptCore::RunScript() {
 	// Step1. Prepare Mods list
 	auto mods = ModManager::instance().LoadMods();
-
+	for (auto x = mods.begin(); x != mods.end();) {
+		if (!ModManager::instance().GetUCCUVersion().match(x->uccu.req, x->uccu.a)) {
+			LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().GetUCCUVersion().toStr(), x->uccu.toStr()));
+			x = mods.erase(x);
+		}
+		else x++;
+	}
+	Loader loader(mods);
 	// Step2. Init Js Cxt
 
 	v8::V8::InitializeICU();
@@ -53,11 +62,26 @@ void ScriptCore::RunScript() {
 	v8::Isolate* isolate = v8::Isolate::New(create_params);
 	{
 		// Step3. Init C++/JS Objects
-
+		
 		// Step4. Excute loader, pass uccu namespace and returns $loader
+		
 
 		// Step5 Run Mods, do $loader.load() -> succ/failed
+		QString name;
+		if (loader.first(name)) {
+			bool succ = false;
+			{
+				// excute
 
+				succ = true;
+			}
+			do {
+				if (succ) {
+
+				}
+			} while (loader.next(name, succ, name));
+		}
+		
 	}
 
 	// Step6. Finalized

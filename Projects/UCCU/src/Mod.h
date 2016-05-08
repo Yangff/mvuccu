@@ -14,11 +14,17 @@ public:
 	
 public:
 	bool match(const Requirement&, const Version a) const;
+
+	QString toStr();
 };
 
 class Dependence {
+public:
 	Requirement req;
-	Version a, b;
+	Version a;
+
+public:
+	QString toStr();
 };
 
 class Mod {
@@ -27,9 +33,18 @@ public:
 	Version version;
 	QDir path;
 	QList<Dependence> deps;
-	
+	Dependence uccu;
 public:
 	bool check();
 	Mod(QDir modPath);
 	bool isMod();
+};
+
+class Loader {
+private:
+	QMap<QString, Mod> m_mMods;
+public:
+	Loader(QMap<QString, Mod>);
+	bool next(QString, bool, QString&);
+	bool first(QString&);
 };
