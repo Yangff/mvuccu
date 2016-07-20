@@ -47,6 +47,7 @@ namespace console {
 
 /* FIX:
 	* using external data or something to mark package_state instead of using package_stack
+	* (or should I using a very naive cd chain to find nearest node_module... )
 	* moving _current_dir to context related instead of state related
 */
 namespace require {
