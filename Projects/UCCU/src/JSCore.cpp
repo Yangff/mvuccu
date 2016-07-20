@@ -45,6 +45,10 @@ namespace console {
 
 #include <v8pp/call_v8.hpp>
 
+/* FIX:
+	* using external data or something to mark package_state instead of using package_stack
+	* moving _current_dir to context related instead of state related
+*/
 namespace require {
 	v8::Handle<v8::Value> require(const char * path);
 	const QString warpper[] = {
@@ -55,7 +59,7 @@ namespace require {
 	QMap<QFileInfo, v8::Persistent<v8::Value>> _external;
 
 	struct package_state {
-		QDir _current_dir;
+		// QDir _current_dir;
 		QDir _package_dir;
 		QMap<QString, v8::Persistent<v8::Value>> _current_module;
 	};
@@ -68,9 +72,9 @@ namespace require {
 	}
 	
 
-	/* run .js file
-	   change _current_dir to that file
-	   hold _current_module  */
+	/*
+		run code in context
+	*/
 	v8::Handle<v8::Value> run(const char * path) {
 		auto isolate = v8::Isolate::GetCurrent();
 		v8::EscapableHandleScope handle_scope(isolate);
@@ -94,6 +98,7 @@ namespace require {
 				
 				v8::Local<v8::Context> context = v8::Context::New(isolate);
 				context->Global()->Set(v8::String::NewFromUtf8(isolate, "filename"), filename);
+				
 				v8::Context::Scope context_scope(context);
 				v8::Local<v8::String> source =
 					v8::String::NewFromUtf8(isolate, s.toUtf8().data,
@@ -196,7 +201,7 @@ namespace require {
 
 		if (p.startsWith("./")) {
 			// lookup file
-
+			run(p.data);
 		} else {
 			auto _modules = package_stack.top()._current_module;
 			if (_modules.find(path) != _modules.end()) {
@@ -205,7 +210,6 @@ namespace require {
 				load(path);
 			}
 		}
-		
 
 	}
 };
