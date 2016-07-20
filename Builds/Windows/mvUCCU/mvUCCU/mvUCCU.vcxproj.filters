@@ -16,6 +16,9 @@
     <Filter Include="Source Files\Platformrealted">
       <UniqueIdentifier>{5cd0db84-3ae0-4c9b-8aea-0208d9556adc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\v8">
+      <UniqueIdentifier>{a1231eef-c6f5-4c50-b077-9fabe7f07f84}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\Injector.cpp">
@@ -41,6 +44,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\JSCore.cpp">
+      <Filter>Source Files\v8</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\Mod.cpp">
       <Filter>Source Files</Filter>

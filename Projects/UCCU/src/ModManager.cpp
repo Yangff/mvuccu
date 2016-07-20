@@ -48,6 +48,11 @@ QMap<QString, Mod> ModManager::LoadMods()
 	return mods;
 }
 
+Version ModManager::UCCUVersion()
+{
+	return Version(1,0,0);
+}
+
 ModManager::ModManager() {
 	m_bWaitingForRes = false; // TODO: Make this be true;
 }

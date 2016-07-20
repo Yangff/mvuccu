@@ -41,8 +41,8 @@ void ScriptCore::RunScript() {
 	// Step1. Prepare Mods list
 	auto mods = ModManager::instance().LoadMods();
 	for (auto x = mods.begin(); x != mods.end();) {
-		if (!ModManager::instance().GetUCCUVersion().match(x->uccu.req, x->uccu.a)) {
-			LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().GetUCCUVersion().toStr(), x->uccu.toStr()));
+		if (!ModManager::instance().UCCUVersion().match(x->uccu.req, x->uccu.a)) {
+			LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().UCCUVersion().toStr(), x->uccu.toStr()));
 			x = mods.erase(x);
 		}
 		else x++;
@@ -52,8 +52,7 @@ void ScriptCore::RunScript() {
 
 	v8::V8::InitializeICU();
 	v8::V8::InitializeExternalStartupData("RPGMV.exe");
-	v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-	v8::V8::InitializePlatform(platform);
+	v8::V8::InitializePlatform(0);
 	v8::V8::Initialize();
 	// v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 	ArrayBufferAllocator array_buffer_allocator;
@@ -88,20 +87,6 @@ void ScriptCore::RunScript() {
 	isolate->Dispose();
 	v8::V8::Dispose();
 	v8::V8::ShutdownPlatform();
-	delete platform;
 	
 }
 
-
-/*
-	* functions
-	* may move to v8Library ?
-*/
-
-/* native_require */
-
-/* native_print */
-
-/* native fs */
-
-/* Init_Natives */

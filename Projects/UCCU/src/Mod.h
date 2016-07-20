@@ -2,6 +2,7 @@
 
 #include <QtCore/QString>
 #include <QtCore/qdir.h>
+#include <QtCore/qmap>
 #include <QtCore/Qlist>
 
 enum Requirement {
@@ -14,7 +15,7 @@ public:
 	
 public:
 	bool match(const Requirement&, const Version a) const;
-
+	Version(int a=0, int b=0, int c=0);
 	QString toStr();
 };
 
@@ -37,6 +38,7 @@ public:
 public:
 	bool check();
 	Mod(QDir modPath);
+	Mod();
 	bool isMod();
 };
 
