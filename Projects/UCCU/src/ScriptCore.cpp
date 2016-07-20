@@ -10,17 +10,7 @@
 #include <libplatform/libplatform.h>
 #include <v8.h>
 
-/*
-#pragma comment(lib,"icui18n.lib")
-#pragma comment(lib,"v8_libplatform.lib")
-#pragma comment(lib,"v8_libbase.lib")
-#pragma comment(lib,"v8_base_0.lib")
-#pragma comment(lib,"v8_base_1.lib")
-#pragma comment(lib,"v8_base_2.lib")
-#pragma comment(lib,"v8_base_3.lib")
-#pragma comment(lib,"v8_nosnapshot.lib")
-#pragma comment(lib,"icuuc.lib")
-*/
+#include <QtCore/qcoreapplication.h>
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 public:
@@ -51,7 +41,8 @@ void ScriptCore::RunScript() {
 	// Step2. Init Js Cxt
 
 	v8::V8::InitializeICU();
-	v8::V8::InitializeExternalStartupData("RPGMV.exe");
+	
+	v8::V8::InitializeExternalStartupData(QCoreApplication::applicationFilePath().toStdString().c_str());
 	v8::V8::InitializePlatform(0);
 	v8::V8::Initialize();
 	// v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
