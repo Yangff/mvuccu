@@ -4,6 +4,7 @@
 #include <QtCore/qfileinfo>
 
 #include "LogManager.h"
+#include "JSCore.h"
 
 namespace global {
 	v8::Persistent<v8::ObjectTemplate> global_templ;
@@ -137,9 +138,12 @@ namespace process {
 		// platform
 #ifdef Q_OS_WIN
 		m.set_const("platform", "win32");
-#endif
-#ifdef Q_OS_MACX
-		m.set_const("platform", "darwin");
+#else
+		#ifdef Q_OS_MACX
+			m.set_const("platform", "darwin");
+		#else
+			m.set_const("platform", "unsupported");
+		#endif
 #endif
 		// env
 		q = QProcessEnvironment::systemEnvironment();
@@ -382,3 +386,29 @@ namespace native_module {
 	}
 
 };
+
+void JSCore::initAll(v8::Isolate * iso) {
+	global::init(iso);
+	console::init(iso);
+	process::init(iso);
+	auto nm = native_module::init(iso);
+
+	native_module::addmodule("native_module", nm);
+	native_module::addmodule("fs", fs::init(iso));
+	native_module::addmodule("vm", vm::init(iso));
+}
+
+v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso)
+{
+	return global::getGlobal(iso);
+}
+
+v8::Handle<v8::Value> JSCore::require(const char * module)
+{
+	return native_module::require(module);
+}
+
+v8::Handle<v8::Value> JSCore::load(const char * name, const char * path)
+{
+	return native_module::load(name, path);
+}
