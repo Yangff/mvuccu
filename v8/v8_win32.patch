@@ -1,0 +1,61 @@
+From e315863a2653ddbaaa041e74d613a46547aed6f8 Mon Sep 17 00:00:00 2001
+From: Yangff <yangff1@gmail.com>
+Date: Sat, 23 Jul 2016 12:03:40 +0800
+Subject: [PATCH] link libplatform with v8.dll
+
+---
+ src/v8.cc | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/v8.cc b/src/v8.cc
+index 154cf62..7cb79eb 100644
+--- a/src/v8.cc
++++ b/src/v8.cc
+@@ -21,6 +21,25 @@
+ #include "src/snapshot/natives.h"
+ #include "src/snapshot/snapshot.h"
+ 
++/* WARN: Modified to create platform by itself */
++/* That means ShutdownPlatform will delete platform_ automatic */
++
++namespace v8 {
++	namespace platform {
++
++		/**
++		* Returns a new instance of the default v8::Platform implementation.
++		*
++		* The caller will take ownership of the returned pointer. |thread_pool_size|
++		* is the number of worker threads to allocate for background jobs. If a value
++		* of zero is passed, a suitable default based on the current number of
++		* processors online will be chosen.
++		*/
++		v8::Platform* CreateDefaultPlatform(int thread_pool_size = 0);
++	};
++};
++
++#pragma comment(lib, "../build/Release/lib/v8_libplatform.lib")
+ 
+ namespace v8 {
+ namespace internal {
+@@ -90,8 +109,9 @@ void V8::InitializeOncePerProcess() {
+   base::CallOnce(&init_once, &InitializeOncePerProcessImpl);
+ }
+ 
+-
+ void V8::InitializePlatform(v8::Platform* platform) {
++  if (!platform)
++	platform = v8::platform::CreateDefaultPlatform();
+   CHECK(!platform_);
+   CHECK(platform);
+   platform_ = platform;
+@@ -100,6 +120,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
+ 
+ void V8::ShutdownPlatform() {
+   CHECK(platform_);
++  delete platform_;
+   platform_ = NULL;
+ }
+ 
+-- 
+2.7.4.windows.1
+
