@@ -1,0 +1,1 @@
+require('modloader').start(require)
