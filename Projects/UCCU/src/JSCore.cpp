@@ -61,39 +61,202 @@ namespace console {
 #include <QtCore/qjsonobject.h>
 
 #include <v8pp/call_v8.hpp>
+#include <v8pp/class.hpp>
 
 namespace fs {
 	const int F_OK = 1;
 	const int R_OK = 2;
 	const int W_OK = 4;
 	const int X_OK = 8;
-	v8::Handle<v8::Value> accessSync(v8::FunctionCallbackInfo<v8::Value> const& args) {
-		QFileInfo f(*v8::String::Utf8Value(args[0]));
+
+	class Stats {
+	private:
+		QString path;
+		bool lstat;
+	public:
+		bool isFile() {
+			return QFileInfo(path).isFile();
+		}
+		bool isDirectory() {
+			return QFileInfo(path).isDir();
+		}
+		bool isSymbolicLink() {
+			return QFileInfo(path).isSymLink();
+		}
+
+		uint uid, gid; uint64_t size;
+
+		void post_stat() {
+			uid = QFileInfo(path).ownerId();
+			gid = QFileInfo(path).groupId();
+			size = QFileInfo(path).size();
+		}
+
+		Stats(const char *path, bool lstat):path(path), lstat(lstat) { 
+			if (!lstat) {
+				this->path = QFileInfo(path).canonicalFilePath();
+			}
+			post_stat();
+		}
+	};
+
+	void accessSync(v8::FunctionCallbackInfo<v8::Value> const& args) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		v8::TryCatch try_catch;
+		v8::String::Utf8Value file(args[0]);
+		if (try_catch.HasCaught()) {
+			return args.GetReturnValue().SetNull();
+		}
+		QFileInfo f(*file);
 		int p = 0;
 		p |= (f.exists()) * F_OK;
 		p |= (f.isReadable()) * R_OK;
 		p |= (f.isWritable()) * W_OK;
 		p |= (f.isExecutable()) * X_OK;
 		int mode = 1;
-		v8::Isolate* isolate = v8::Isolate::GetCurrent();
 		if (args.Length() == 2) {
 			mode = v8pp::from_v8<int>(isolate, args[1], 1);
 		}
 		if ((mode != 0) && ((mode & p) != 0))
-			return v8::Null(isolate);
-		isolate->ThrowException(v8::String::NewFromUtf8(isolate, "no access"));
+			return args.GetReturnValue().SetNull();
+		return args.GetReturnValue().Set(isolate->ThrowException(v8::String::NewFromUtf8(isolate, "no access")));
 	}
 
-
-	v8::Handle<v8::Value> readFileSync(v8::FunctionCallbackInfo<v8::Value> const& args) {
+	v8::Handle<v8::Value> readFileSync(const char * file) {
 		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.exists() && f.open(QIODevice::ReadOnly)) {
+			auto d = f.readAll();
+			f.close();
+			return v8::String::NewFromOneByte(isolate, (uint8_t*)d.data(), v8::NewStringType::kNormal, d.length()).ToLocalChecked();
+		}
 		return v8::Null(isolate);
+	}
+
+	uint64_t writeFileSync(const char * file, const char *data) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly)) {
+			uint64_t  l = f.write(data);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	uint64_t writeFileLenSync(const char * file, const char *data, uint64_t len) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly)) {
+			uint64_t l = f.write(data, len);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	uint64_t appendFileSync(const char * file, const char *data) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly | QIODevice::Append)) {
+			uint64_t  l = f.write(data);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	uint64_t appendFileLenSync(const char * file, const char *data, uint64_t len) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly | QIODevice::Append)) {
+			uint64_t l = f.write(data, len);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	v8::Handle<v8::Value> realpathSync(const char *file) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFileInfo f(file);
+		if (f.exists()) {
+			QString s = f.canonicalFilePath();
+			auto str = v8::String::NewFromUtf8(isolate, s.toUtf8().data());
+			return str;
+		}
+		return v8::Null(isolate);
+	}
+
+	bool renameSync(const char *oldPath, const char *newPath) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(oldPath);
+		if (f.exists()) {
+			return f.rename(newPath);
+		}
+		return false;
+	}
+
+	bool rmdirSync(const char *path) {
+		QDir p(path);
+		if (p.exists()) {
+			return QDir().rmdir(path);
+		}
+		return false;
+	}
+
+	v8::Handle<v8::Value> statSync(const char *path) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		Stats *s = new Stats(path, false);
+		return v8pp::class_<Stats>::import_external(isolate, s);
+	}
+
+	int internalModuleStat(const char *path) {
+		QFileInfo info(path);
+		if (info.exists()) {
+			if (info.isFile())
+				return 0;
+			if (info.isDir())
+				return 1;
+			return -2;
+		} return -2;
+	}
+
+	bool unlinkSync(const char *path) {
+		return QFile(path).remove();
 	}
 
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
 		v8pp::module m(iso);
-		m.set("readFileSync", &readFileSync);
+
+		m.set_const("F_OK", F_OK);
+		m.set_const("R_OK", R_OK);
+		m.set_const("W_OK", W_OK);
+		m.set_const("X_OK", X_OK);
+
 		m.set("accessSync", &accessSync);
+		m.set("readFileSync", &readFileSync);
+		m.set("writeFileSync", &writeFileSync);
+		m.set("writeFileLenSync", &writeFileLenSync);
+		m.set("appendFileSync", &writeFileSync);
+		m.set("appendFileLenSync", &writeFileLenSync);
+		m.set("realpathSync", &realpathSync);
+		m.set("renameSync", &renameSync);
+		m.set("rmdirSync", &rmdirSync);
+		m.set("statSync", &statSync);
+		m.set("internalModuleStat", &internalModuleStat);
+		m.set("unlinkSync", &unlinkSync);
+
+		v8pp::class_<Stats> stats(iso);
+		stats.set("isFile", &Stats::isFile);
+		stats.set("isDirectory", &Stats::isDirectory);
+		stats.set("isSymbolicLink", &Stats::isSymbolicLink);
+
+		stats.set_const("uid", &Stats::uid);
+		stats.set_const("gid", &Stats::gid);
+		stats.set_const("size", &Stats::size);
+		
+		m.set("Stats", stats);
 
 		return m.new_instance();
 	}
@@ -209,16 +372,15 @@ namespace vm {
 		if (try_catch.HasCaught()) {
 			if (try_catch.HasTerminated())
 				iso->CancelTerminateExecution();
-			try_catch.ReThrow();
-			return handle_scope.Escape(v8::Null(iso));
+			return try_catch.ReThrow();
 		}
 		if (result.IsEmpty()) {
-			try_catch.ReThrow();
+			return try_catch.ReThrow();
 		}
 		return result;
 	}
 
-	v8::Local<v8::String> GetFilename(v8::Local<v8::Value> x) {
+	v8::Local<v8::Value> GetFilename(v8::Local<v8::Value> x) {
 		using v8::String;
 		using v8::Local;
 		using v8::Value;
@@ -233,8 +395,7 @@ namespace vm {
 			return x.As<String>();
 		}
 		if (!x->IsObject()) {
-			v8pp::throw_ex(isolate, "options must be an object");
-			return Local<String>();
+			return v8pp::throw_ex(isolate, "options must be an object");
 		}
 		Local<String> key = String::NewFromUtf8(isolate, "filename");
 		Local<Value> value = x.As<v8::Object>()->Get(key);
@@ -278,10 +439,8 @@ namespace vm {
 			lineOffset,
 			columnOffset
 		);
-		if (try_catch.HasCaught())
-			try_catch.ReThrow();
-		if (result.IsEmpty())
-			try_catch.ReThrow();
+		if (try_catch.HasCaught() || result.IsEmpty())
+			return try_catch.ReThrow();
 		return result;
 	};
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
@@ -334,6 +493,7 @@ namespace native_module {
 			QFile _f(path);
 			if (_f.open(QIODevice::ReadOnly)) {
 				QString s = _wrap(_f.readAll());
+				_f.close();
 				v8::Local<v8::Object> module = v8::Object::New(isolate);
 				v8::Local<v8::Object> exports = v8::Object::New(isolate);
 				module->Set(v8::String::NewFromUtf8(isolate, "exports"), exports);
@@ -349,17 +509,21 @@ namespace native_module {
 				v8::TryCatch try_catch(isolate);
 				v8::Local<v8::Value> result = vm::_runInContext(isolate, context, source, filename, 0, 0);
 				if (try_catch.HasCaught()) {
-					try_catch.ReThrow();
-					return handle_scope.Escape(v8::Null(isolate));
+					return try_catch.ReThrow();
+				}
+				if (result.IsEmpty()) {
+					return try_catch.ReThrow();
 				}
 
 				auto func = v8::Local<v8::Function>::Cast(result);
-				v8pp::call_v8(isolate, func, context->Global(), exports, &require, module, dirname, filename);
+				result = v8pp::call_v8(isolate, func, context->Global(), exports, &require, module, dirname, filename);
 				if (try_catch.HasCaught()) {
 					if (try_catch.HasTerminated())
 						isolate->CancelTerminateExecution();
-					try_catch.ReThrow();
-					return handle_scope.Escape(v8::Null(isolate));
+					return try_catch.ReThrow();
+				}
+				if (result.IsEmpty()) {
+					return try_catch.ReThrow();
 				}
 				addmodule(name, exports);
 				return handle_scope.Escape(exports);
@@ -367,8 +531,7 @@ namespace native_module {
 
 		}
 		else {
-			isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("File (%1) not found.").arg(f.absoluteFilePath()).toUtf8().data));
-			return handle_scope.Escape(v8::Null(isolate));
+			return isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("File (%1) not found.").arg(f.absoluteFilePath()).toUtf8().data));
 		}
 	}
 	
@@ -398,17 +561,14 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("vm", vm::init(iso));
 }
 
-v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso)
-{
+v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso) {
 	return global::getGlobal(iso);
 }
 
-v8::Handle<v8::Value> JSCore::require(const char * module)
-{
+v8::Handle<v8::Value> JSCore::require(const char * module) {
 	return native_module::require(module);
 }
 
-v8::Handle<v8::Value> JSCore::load(const char * name, const char * path)
-{
+v8::Handle<v8::Value> JSCore::load(const char * name, const char * path) {
 	return native_module::load(name, path);
 }
