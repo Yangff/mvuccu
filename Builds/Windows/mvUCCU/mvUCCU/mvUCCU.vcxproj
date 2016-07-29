@@ -159,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\JSCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\LogManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ModManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ResourceManager.h" />
