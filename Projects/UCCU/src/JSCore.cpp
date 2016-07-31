@@ -20,7 +20,7 @@ namespace global {
 };
 
 namespace console {
-	v8::Persistent<v8::Value> _console;
+	v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> _console;
 	void log(v8::FunctionCallbackInfo<v8::Value> const& args) {
 		v8::HandleScope handle_scope(args.GetIsolate());
 		for (int i = 0; i < args.Length(); i++) {
@@ -29,6 +29,7 @@ namespace console {
 			LogManager::instance().log(*str);
 		}
 		LogManager::instance().log("\n");
+		args.GetReturnValue().SetNull();
 	}
 
 	void err(v8::FunctionCallbackInfo<v8::Value> const& args) {
@@ -39,6 +40,7 @@ namespace console {
 			LogManager::instance().err(*str);
 		}
 		LogManager::instance().err("\n");
+		args.GetReturnValue().SetNull();
 	}
 
 	void init(v8::Isolate *iso) {
@@ -50,8 +52,6 @@ namespace console {
 		global::getGlobal(iso)->Set(iso, "console", c);
 	}
 };
-
-#define V8Func(name) v8::Handle<v8::Value> name(v8::FunctionCallbackInfo<v8::Value> const& args)
 
 #include <QtCore/qmap.h>
 #include <QtCore/qstack.h>
@@ -252,9 +252,9 @@ namespace fs {
 		stats.set("isDirectory", &Stats::isDirectory);
 		stats.set("isSymbolicLink", &Stats::isSymbolicLink);
 
-		stats.set_const("uid", &Stats::uid);
-		stats.set_const("gid", &Stats::gid);
-		stats.set_const("size", &Stats::size);
+		stats.set("uid", &Stats::uid, true);
+		stats.set("gid", &Stats::gid, true);
+		stats.set("size", &Stats::size, true);
 		
 		m.set("Stats", stats);
 
@@ -265,6 +265,7 @@ namespace fs {
 
 #include <QtCore/qcoreapplication.h>
 #include <QtCore/QProcessEnvironment>
+
 namespace process {
 	QProcessEnvironment q;
 	void GetEnv(v8::Local<v8::String> _property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -290,11 +291,7 @@ namespace process {
 		return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), QDir::currentPath().toUtf8().data());
 	}
 
-	v8::Handle<v8::Array> hrtime() {
-
-	}
-	char * path;
-	v8::Persistent<v8::Value> _process;
+	v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> _process;
 	void init(v8::Isolate *iso) {
 		v8pp::module m(iso);
 
@@ -318,18 +315,14 @@ namespace process {
 		// execPath
 
 		const char * _path = QCoreApplication::applicationFilePath().toUtf8().data();
-		int l = strlen(_path) + 1;
-		path = new char[l];
-		for (int i = 0; i < l; i++)
-			path[i] = _path[i];
 
-		m.set("execPath", path);
+		m.set_const("execPath", _path);
+		m.set_const("pid", QCoreApplication::applicationPid());
+		m.set_const("version", "1.0.0");
 
 		m.set("exit", &exit);
 
 		m.set("cwd", &cwd);
-		
-		m.set("hrtime", &hrtime);
 
 		auto args = QCoreApplication::arguments();
 		v8::Local<v8::Array> argv = v8::Array::New(iso, args.length());
@@ -420,7 +413,7 @@ namespace vm {
 		return value->IsUndefined() ? defaultOffset : v8pp::from_v8<int>(isolate, value, 0);
 	}
 	
-	v8::Local<v8::Value> runInThisContext(v8::FunctionCallbackInfo<v8::Value> const& args) {
+	void runInThisContext(v8::FunctionCallbackInfo<v8::Value> const& args) {
 		auto isolate = v8::Isolate::GetCurrent();
 		v8::EscapableHandleScope handle_scope(isolate);
 		v8::TryCatch try_catch(isolate);
@@ -429,19 +422,26 @@ namespace vm {
 		auto lineOffset = GetOffsetArg(args[1], "lineOffset");
 		auto columnOffset = GetOffsetArg(args[1], "columnOffset");
 
+		if (try_catch.HasCaught()) {
+			args.GetReturnValue().Set(try_catch.ReThrow());
+			return;
+		}
+
 		auto context = v8::Context::New(isolate, NULL, global::getGlobal(isolate));
 		
 		auto result = _runInContext(
 			v8::Isolate::GetCurrent(),
 			context, 
 			code, 
-			filename,
+			filename.As<v8::String>(),
 			lineOffset,
 			columnOffset
 		);
-		if (try_catch.HasCaught() || result.IsEmpty())
-			return try_catch.ReThrow();
-		return result;
+		if (try_catch.HasCaught() || result.IsEmpty()) {
+			args.GetReturnValue().Set(try_catch.ReThrow());
+			return;
+		}
+		args.GetReturnValue().Set(result);
 	};
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
 		v8pp::module m(iso);
@@ -455,16 +455,18 @@ namespace vm {
 
 namespace native_module {
 	const char * _wrapper[] = {"(function (exports, require, module, __filename, __dirname) {\n", "\n});"};
-	v8::Persistent<v8::Array> wrapper;
-	QMap<QString, v8::Persistent<v8::Value>> modules;
+	v8::Persistent<v8::Array, v8::CopyablePersistentTraits<v8::Array>> wrapper;
+	QMap<QString, v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>>> modules;
 
-	void addmodule(const char * name, v8::Handle<v8::Object> obj) {
-		modules[name] = v8::Persistent<v8::Object>(v8::Isolate::GetCurrent(), obj);
+	void addmodule(const char * name, v8::Handle<v8::Value> obj) {
+		modules[name].Reset(v8::Isolate::GetCurrent(), v8::Persistent<v8::Object>(v8::Isolate::GetCurrent(), obj.As<v8::Object>()));
 	}
 	
 	v8::Handle<v8::Value> require(const char * module) {
 		if (modules.find(module) != modules.end())
 			return v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), modules[module]);
+		QString e("Cannot find internal module ("); e += module; e += ").";
+		return v8pp::throw_ex(v8::Isolate::GetCurrent(), e.toUtf8().data());
 	};
 
 	bool nonInternalExists(const char * module) {
@@ -514,9 +516,9 @@ namespace native_module {
 				if (result.IsEmpty()) {
 					return try_catch.ReThrow();
 				}
-
+				
 				auto func = v8::Local<v8::Function>::Cast(result);
-				result = v8pp::call_v8(isolate, func, context->Global(), exports, &require, module, dirname, filename);
+				result = v8pp::call_v8(isolate, func, context->Global(), exports, v8pp::wrap_function(isolate, "require", &require), module, dirname, filename);
 				if (try_catch.HasCaught()) {
 					if (try_catch.HasTerminated())
 						isolate->CancelTerminateExecution();
@@ -528,11 +530,10 @@ namespace native_module {
 				addmodule(name, exports);
 				return handle_scope.Escape(exports);
 			}
-
+			return isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("Open file (%1) failed.").arg(f.absoluteFilePath()).toUtf8().data()));
 		}
-		else {
-			return isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("File (%1) not found.").arg(f.absoluteFilePath()).toUtf8().data));
-		}
+		return isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("File (%1) not found.").arg(f.absoluteFilePath()).toUtf8().data()));
+		
 	}
 	
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
@@ -541,7 +542,8 @@ namespace native_module {
 		ary->Set(0, v8::String::NewFromUtf8(iso, _wrapper[0]));
 		ary->Set(1, v8::String::NewFromUtf8(iso, _wrapper[1]));
 		wrapper.Reset(iso, ary);
-		m.set("wrapper", wrapper);
+
+		m.set("wrapper", ary);
 		m.set("wrap", &wrap);
 		m.set("nonInternalExists", &nonInternalExists);
 		m.set("require", &require);
