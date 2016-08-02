@@ -2,6 +2,7 @@
 #include "uccuConfig.h"
 #include "LogManager.h"
 #include "ModManager.h"
+#include "JSCore.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -27,18 +28,12 @@ ScriptCore::ScriptCore() {
 
 }
 
+#include <v8pp/call_v8.hpp>
+#include <v8pp/object.hpp>
+
 void ScriptCore::RunScript() {
-	// Step1. Prepare Mods list
-	auto mods = ModManager::instance().LoadMods();
-	for (auto x = mods.begin(); x != mods.end();) {
-		if (!ModManager::instance().UCCUVersion().match(x->uccu.req, x->uccu.a)) {
-			LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().UCCUVersion().toStr(), x->uccu.toStr()));
-			x = mods.erase(x);
-		}
-		else x++;
-	}
-	Loader loader(mods);
-	// Step2. Init Js Cxt
+
+	// Step1. Init Js Cxt
 
 	v8::V8::InitializeICU();
 	
@@ -51,27 +46,13 @@ void ScriptCore::RunScript() {
 	create_params.array_buffer_allocator = &array_buffer_allocator;
 	v8::Isolate* isolate = v8::Isolate::New(create_params);
 	{
-		// Step3. Init C++/JS Objects
-		
-		// Step4. Excute loader, pass uccu namespace and returns $loader
-		
+		// Step2. Init C++/JS Objects
+		JSCore::initAll(isolate);
+		// Step3. Excute loader, pass uccu namespace and returns $loader
+		v8::Handle<v8::Function> f;
+		if (v8pp::get_option(isolate, JSCore::require("module").As<v8::Object>(), "runMain", f)) {
 
-		// Step5 Run Mods, do $loader.load() -> succ/failed
-		QString name;
-		if (loader.first(name)) {
-			bool succ = false;
-			{
-				// excute
-
-				succ = true;
-			}
-			do {
-				if (succ) {
-
-				}
-			} while (loader.next(name, succ, name));
 		}
-		
 	}
 
 	// Step6. Finalized

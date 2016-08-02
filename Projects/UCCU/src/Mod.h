@@ -37,7 +37,7 @@ public:
 	Dependence uccu;
 public:
 	bool check();
-	Mod(QDir modPath);
+	Mod(QString modPath);
 	Mod();
 	bool isMod();
 };

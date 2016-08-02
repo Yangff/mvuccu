@@ -1,3 +1,5 @@
+// TODO: Give up all these f******* code and move to js
+
 #include "Mod.h"
 
 Loader::Loader(QMap<QString, Mod>)
@@ -19,8 +21,11 @@ bool Mod::check()
 	return false;
 }
 
-Mod::Mod(QDir modPath)
-{
+Mod::Mod(QString modPath) {
+	QFile f(modPath + "/mod.json");
+	if (f.exists() && f.open(QIODevice::ReadOnly)) {
+		f.readAll();
+	}
 }
 
 Mod::Mod()

@@ -130,9 +130,7 @@ namespace Qml {
 		void EraseVar(QString);
 
 		void AddUnnamedObject(QSharedPointer<QmlNode>);
-		void AddUnnamedObjectAfter(QSharedPointer<QmlNode>, QSharedPointer<QmlNode>);
 		void AddUnnamedObjectBefore(QSharedPointer<QmlNode>, QSharedPointer<QmlNode>);
-
 
 		void EraseByName(QString);
 		QString GetNameByObject(QSharedPointer<QmlNode>);

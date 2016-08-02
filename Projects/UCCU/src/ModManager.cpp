@@ -14,7 +14,7 @@ unsigned char * ModManager::RunMods() {
 
 	// run mods
 
-	
+	ScriptCore::instance().RunScript();
 
 	// cleanup
 

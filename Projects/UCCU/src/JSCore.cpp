@@ -511,6 +511,8 @@ namespace native_module {
 				v8::TryCatch try_catch(isolate);
 				v8::Local<v8::Value> result = vm::_runInContext(isolate, context, source, filename, 0, 0);
 				if (try_catch.HasCaught()) {
+					if (try_catch.HasTerminated())
+						isolate->CancelTerminateExecution();
 					return try_catch.ReThrow();
 				}
 				if (result.IsEmpty()) {
@@ -552,6 +554,60 @@ namespace native_module {
 
 };
 
+#include "QmlProcesser.h"
+#include "QmlNode.h"
+
+namespace qml {
+	using namespace Qml;
+
+};
+
+
+#include "Mod.h"
+#include "ModManager.h"
+namespace modloader {
+	int runLoader(v8::Handle<v8::Function> require) {
+		auto isolate = v8::Isolate::GetCurrent();
+		v8::TryCatch try_catch;
+		// Step4. Prepare Mods list
+		auto mods = ModManager::instance().LoadMods();
+		for (auto x = mods.begin(); x != mods.end();) {
+			if (!ModManager::instance().UCCUVersion().match(x->uccu.req, x->uccu.a)) {
+				LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().UCCUVersion().toStr(), x->uccu.toStr()));
+				x = mods.erase(x);
+			}
+			else x++;
+		}
+		Loader loader(mods);
+		// Step5 Run Mods, do $loader.load() -> succ/failed
+		QString name;
+		int oks = 0;
+		if (loader.first(name)) {
+			bool succ = false;
+			do {
+				succ = false;
+				{
+					// excute
+					succ = v8pp::call_v8(isolate, require, isolate->GetCurrentContext()->Global(), name.toUtf8().data())->ToBoolean()->BooleanValue();
+					if (try_catch.HasCaught()) {
+						LogManager::instance().log("Unexpcted v8 error from mod (" + name + "). Ignored\n");
+						try_catch.Reset();
+						succ = false;
+					}
+					oks += succ;
+				}
+			} while (loader.next(name, succ, name));
+		}
+		return oks;
+	}
+
+	v8::Handle<v8::Value> init(v8::Isolate *iso) {
+		v8pp::module m(iso);
+		m.set("start", &runLoader);
+		return m.new_instance();
+	}
+};
+
 void JSCore::initAll(v8::Isolate * iso) {
 	global::init(iso);
 	console::init(iso);
@@ -561,6 +617,12 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("native_module", nm);
 	native_module::addmodule("fs", fs::init(iso));
 	native_module::addmodule("vm", vm::init(iso));
+	native_module::addmodule("modloader", modloader::init(iso));
+
+	native_module::load("util", "./mvuccu/lib/util.js");
+	native_module::load("assert", "./mvuccu/lib/assert.js");
+	native_module::load("path", "./mvuccu/lib/path.js");
+	native_module::load("module", "./mvuccu/lib/module.js");
 }
 
 v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso) {

@@ -151,6 +151,8 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\LogManager.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\Mod.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ModManager.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\QmlNode.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\src\QmlProcessor.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ResourceManager.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\uccuConfig.cpp" />
@@ -162,6 +164,8 @@
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\JSCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\LogManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ModManager.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlNode.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlProcesser.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ResourceManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\uccuConfig.h" />
