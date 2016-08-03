@@ -556,57 +556,89 @@ namespace native_module {
 
 #include "QmlProcesser.h"
 #include "QmlNode.h"
+#include "ResourceManager.h"
 
-namespace qml {
+namespace ModAPI {
 	using namespace Qml;
-
-};
-
-
-#include "Mod.h"
-#include "ModManager.h"
-namespace modloader {
-	int runLoader(v8::Handle<v8::Function> require) {
-		auto isolate = v8::Isolate::GetCurrent();
-		v8::TryCatch try_catch;
-		// Step4. Prepare Mods list
-		auto mods = ModManager::instance().LoadMods();
-		for (auto x = mods.begin(); x != mods.end();) {
-			if (!ModManager::instance().UCCUVersion().match(x->uccu.req, x->uccu.a)) {
-				LogManager::instance().log(QString("[ModLoader] Skiping %1. UCCU(%2) not match UCCU(%3)").arg(x->name, ModManager::instance().UCCUVersion().toStr(), x->uccu.toStr()));
-				x = mods.erase(x);
-			}
-			else x++;
-		}
-		Loader loader(mods);
-		// Step5 Run Mods, do $loader.load() -> succ/failed
-		QString name;
-		int oks = 0;
-		if (loader.first(name)) {
-			bool succ = false;
-			do {
-				succ = false;
-				{
-					// excute
-					succ = v8pp::call_v8(isolate, require, isolate->GetCurrentContext()->Global(), name.toUtf8().data())->ToBoolean()->BooleanValue();
-					if (try_catch.HasCaught()) {
-						LogManager::instance().log("Unexpcted v8 error from mod (" + name + "). Ignored\n");
-						try_catch.Reset();
-						succ = false;
-					}
-					oks += succ;
-				}
-			} while (loader.next(name, succ, name));
-		}
-		return oks;
+	v8::Handle<v8::String> get(const char *file) {
+		auto iso = v8::Isolate::GetCurrent();
+		QByteArray content = ResourceManager::instance().GetFileContent(":/qml/" + QString(file));
+		v8::Handle<v8::String> s = v8::String::NewFromOneByte(iso, (uint8_t*)content.data(), v8::NewStringType::kNormal, content.length()).ToLocalChecked();
+		return s;
 	}
+	bool update(const char *file, v8::Handle<v8::String> context) {
+		v8::String::Utf8Value d(context);
+		return ResourceManager::instance().UpdateFileContent(":/qml/" + QString(file), *d);
+	}
+	bool add(const char *file, v8::Handle<v8::String> context) {
+		v8::String::Utf8Value d(context);
+		return ResourceManager::instance().AddFile(":/qml/" + QString(file), *d);
+	}
+
+
+	class qmlref {
+	private:
+		QSharedPointer<QmlNode> m_pNode;
+		QString m_sField;
+	public:
+		qmlref(QSharedPointer<QmlNode> x, QString field) :m_pNode(x), m_sField(field) {} // no cons from js
+		
+	};
+
+	class qmlnode {
+	private:
+		QSharedPointer<QmlNode> m_pNode;
+	private:
+		void create(QString typeId) { m_pNode = QSharedPointer<Qml::QmlNode>(new QmlNode(typeId)); };
+	public:
+		explicit qmlnode(v8::FunctionCallbackInfo<v8::Value> const& x):m_pNode() {
+			if (x.Length() == 0) {
+				return;
+			} else if (x.Length() == 1) {
+				auto s = x[0].As<v8::String>();
+				if (s.IsEmpty())
+					return;
+				v8::String::Utf8Value v(s);
+				create(*v);
+			}
+		}
+		qmlnode(QSharedPointer<QmlNode> x):m_pNode(x){};
+	public:
+		static v8::Handle<v8::Value> New(QSharedPointer<QmlNode> x) {
+			qmlnode *n = new qmlnode(x);
+			return v8pp::class_<qmlnode>::import_external(v8::Isolate::GetCurrent(), n);
+		}
+	};
+
+	class qmldocument {
+	private:
+		QSharedPointer<Document> m_pDoc;
+	public:
+		explicit qmldocument(const char* code) {
+			QmlProcessor process(code);
+			m_pDoc = QSharedPointer<Qml::Document>(process.GenerateDocument());
+		}
+	public:
+		static v8::Handle<v8::Value> New(const char* code) {
+			qmldocument *n = new qmldocument(code);
+			return v8pp::class_<qmldocument>::import_external(v8::Isolate::GetCurrent(), n);
+		}
+	public:
+		v8::Handle<v8::Value> get_root() {
+			return qmlnode::New(m_pDoc->root);
+		}
+	};
 
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
+		v8pp::class_<qmldocument> cdoc(iso);
+		cdoc.ctor<const char*>()
+			.set("imports", v8pp::property(&qmldocument::get_root));
+
 		v8pp::module m(iso);
-		m.set("start", &runLoader);
-		return m.new_instance();
+		m.set_const("api", "1.0.0");
 	}
 };
+
 
 void JSCore::initAll(v8::Isolate * iso) {
 	global::init(iso);
@@ -617,7 +649,7 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("native_module", nm);
 	native_module::addmodule("fs", fs::init(iso));
 	native_module::addmodule("vm", vm::init(iso));
-	native_module::addmodule("modloader", modloader::init(iso));
+	native_module::addmodule("modapi", ModAPI::init(iso));
 
 	native_module::load("util", "./mvuccu/lib/util.js");
 	native_module::load("assert", "./mvuccu/lib/assert.js");
