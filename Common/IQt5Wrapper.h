@@ -19,7 +19,7 @@ typedef bool(*p_qRegisterResourceData)(
 	);
 
 
-class IQt5Wrpaaer {
+class IQt5Wrapper {
 public:
 	virtual void Set_QTranslator_load(p_QTranslator_load) = NULL;
 
@@ -41,4 +41,4 @@ public:
 		const unsigned char *data) = NULL;
 };
 
-typedef bool (__stdcall*pInitUCCU)(IQt5Wrpaaer *);
+typedef bool (__stdcall*pInitUCCU)(IQt5Wrapper *);

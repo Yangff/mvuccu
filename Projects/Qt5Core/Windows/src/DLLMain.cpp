@@ -38,7 +38,7 @@ BOOL WINAPI DllMain(
 			auto o_qRegisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qRegisterResourceData@@YA_NHPBE00@Z");
 			auto o_qUnregisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qUnregisterResourceData@@YA_NHPBE00@Z");
 
-			wrapper = new CQt5WrpaaerV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData);
+			wrapper = new CQt5WrapperV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData);
 
 			if (!match) {
 				hUCCU = LoadLibrary(L"mvuccu/mvUCCU.dll");

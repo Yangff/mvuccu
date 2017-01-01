@@ -1,4 +1,6 @@
 #include <v8pp/module.hpp>
+#include <v8pp/utility.hpp>
+#include <v8pp/convert.hpp>
 #include <v8.h>
 
 #include <QtCore/qfileinfo>
@@ -7,10 +9,10 @@
 #include "JSCore.h"
 
 namespace global {
-	v8::Persistent<v8::ObjectTemplate> global_templ;
+	v8::UniquePersistent<v8::ObjectTemplate> global_templ;
 
-	v8::Handle<v8::ObjectTemplate> getGlobal(v8::Isolate *iso) {
-		return v8::Local<v8::ObjectTemplate>::New(iso, global_templ);
+	v8::Handle<v8::ObjectTemplate> global(v8::Isolate *iso) {
+		return v8pp::to_local(iso, global_templ);
 	}
 
 	void init(v8::Isolate *iso) {
@@ -20,7 +22,7 @@ namespace global {
 };
 
 namespace console {
-	v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> _console;
+	v8::UniquePersistent<v8::Value> _console;
 	void log(v8::FunctionCallbackInfo<v8::Value> const& args) {
 		v8::HandleScope handle_scope(args.GetIsolate());
 		for (int i = 0; i < args.Length(); i++) {
@@ -49,7 +51,11 @@ namespace console {
 		m.set("err", &err);
 		auto c = m.new_instance();
 		_console.Reset(iso, c);
-		global::getGlobal(iso)->Set(iso, "console", c);
+		global::global(iso)->Set(iso, "console", c);
+	}
+
+	v8::Handle<v8::Value> console(v8::Isolate *iso) {
+		return v8pp::to_local(iso, _console);
 	}
 };
 
@@ -310,7 +316,7 @@ namespace process {
 		
 		v8::Handle<v8::ObjectTemplate> result = v8::ObjectTemplate::New(iso);
 		result->SetNamedPropertyHandler(GetEnv, SetEnv);
-		m.set("env", result);
+		m.set("env", result->NewInstance());
 
 		// execPath
 
@@ -336,7 +342,7 @@ namespace process {
 
 		_process.Reset(iso, i);
 		
-		global::getGlobal(iso)->Set(iso, "process", i);
+		global::global(iso)->Set(iso, "process", i);
 	}
 
 	v8::Handle<v8::Value> getProcess(v8::Isolate *iso) {
@@ -427,7 +433,7 @@ namespace vm {
 			return;
 		}
 
-		auto context = v8::Context::New(isolate, NULL, global::getGlobal(isolate));
+		auto context = v8::Context::New(isolate, NULL, global::global(isolate));
 		
 		auto result = _runInContext(
 			v8::Isolate::GetCurrent(),
@@ -503,7 +509,7 @@ namespace native_module {
 				auto filename = v8::String::NewFromUtf8(isolate, f.fileName().toUtf8().data());
 				auto dirname = v8::String::NewFromUtf8(isolate, f.absoluteDir().absolutePath().toUtf8().data());
 
-				v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global::getGlobal(isolate));
+				v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global::global(isolate));
 				v8::Local<v8::String> source =
 					v8::String::NewFromUtf8(isolate, s.toUtf8().data(),
 						v8::NewStringType::kNormal).ToLocalChecked();
@@ -560,6 +566,7 @@ namespace native_module {
 
 namespace ModAPI {
 	using namespace Qml;
+	
 	v8::Handle<v8::String> get(const char *file) {
 		auto iso = v8::Isolate::GetCurrent();
 		QByteArray content = ResourceManager::instance().GetFileContent(":/qml/" + QString(file));
@@ -631,11 +638,18 @@ namespace ModAPI {
 
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
 		v8pp::class_<qmldocument> cdoc(iso);
+		v8pp::class_<qmlnode> cnode(iso);
+		v8pp::class_<qmlref> cref(iso);
+		
 		cdoc.ctor<const char*>()
 			.set("imports", v8pp::property(&qmldocument::get_root));
 
 		v8pp::module m(iso);
 		m.set_const("api", "1.0.0");
+		m.set("QMLDocument", cdoc);
+		m.set("QMLNode", cnode);
+
+		return m.new_instance();
 	}
 };
 
@@ -658,7 +672,7 @@ void JSCore::initAll(v8::Isolate * iso) {
 }
 
 v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso) {
-	return global::getGlobal(iso);
+	return global::global(iso);
 }
 
 v8::Handle<v8::Value> JSCore::require(const char * module) {

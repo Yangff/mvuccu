@@ -1,6 +1,6 @@
 #pragma once
 
-class CQt5WrpaaerV1 : public IQt5Wrpaaer {
+class CQt5WrapperV1 : public IQt5Wrapper {
 private:
 	p_QTranslator_load AddrTranslator;
 	p_qRegisterResourceData AddrRegister;
@@ -10,7 +10,7 @@ public:
 	p_QTranslator_load LoadHooked;
 	p_qRegisterResourceData RegisterHooked;
 public:
-	CQt5WrpaaerV1(p_QTranslator_load AddrTranslator, p_qRegisterResourceData AddrRegister, p_qRegisterResourceData AddrUnregister) :
+	CQt5WrapperV1(p_QTranslator_load AddrTranslator, p_qRegisterResourceData AddrRegister, p_qRegisterResourceData AddrUnregister) :
 		AddrTranslator(AddrTranslator), AddrRegister(AddrRegister), AddrUnregister(AddrUnregister),
 		LoadHooked(AddrTranslator), RegisterHooked(AddrRegister) {};
 

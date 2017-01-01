@@ -10,8 +10,8 @@ private:
 private:
 	static Injector* ins;
 public:
-	bool Init(IQt5Wrpaaer* wrapper);
+	bool Init(IQt5Wrapper* wrapper);
 	bool OnExit();
 	bool bQappTriggered;
-	IQt5Wrpaaer* Wrapper;
+	IQt5Wrapper* Wrapper;
 };

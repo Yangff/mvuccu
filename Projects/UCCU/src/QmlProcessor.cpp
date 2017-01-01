@@ -1,9 +1,9 @@
 #include "QmlProcesser.h"
 
-#include <QtQml/5.4.1/QtQml/private/qqmljslexer_p.h> 
-#include <QtQml/5.4.1/QtQml/private/qqmljsparser_p.h>
-#include <QtQml/5.4.1/QtQml/private/qqmljsengine_p.h>
-#include <QtQml/5.4.1/QtQml/private/qqmljsastvisitor_p.h>
+#include <QtQml/5.4.2/QtQml/private/qqmljslexer_p.h> 
+#include <QtQml/5.4.2/QtQml/private/qqmljsparser_p.h>
+#include <QtQml/5.4.2/QtQml/private/qqmljsengine_p.h>
+#include <QtQml/5.4.2/QtQml/private/qqmljsastvisitor_p.h>
 #include <QtCore/qpointer.h>
 
 #include <QtQml/qjsvalue.h>

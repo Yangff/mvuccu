@@ -5,7 +5,7 @@
 
 #include "Qt5Core.h"
 
-CQt5WrpaaerV1 *wrapper;
+CQt5WrapperV1 *wrapper;
 
 bool QTranslator::load(const QString & filename,
 	const QString & directory,

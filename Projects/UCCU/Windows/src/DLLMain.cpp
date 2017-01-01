@@ -25,7 +25,7 @@ BOOL WINAPI DllMain(
 	return TRUE;
 }
 
-bool __stdcall InitUCCU(IQt5Wrpaaer * wrap) {
+bool __stdcall InitUCCU(IQt5Wrapper * wrap) {
 	if (uccuConfig::instance().enableConsoleWindow()) {
 		AllocConsole();
 		freopen("CONOUT$", "w+t", stdout);

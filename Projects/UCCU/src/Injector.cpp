@@ -88,7 +88,7 @@ public:
 	}
 };
 
-bool Injector::Init(IQt5Wrpaaer* wrapper) {
+bool Injector::Init(IQt5Wrapper* wrapper) {
 	// step1. init hooks
 	wrapper->Set_qRegisterResourceData(wrap_qRegisterResourceData);
 	auto addr = &WrappedLoad::load;

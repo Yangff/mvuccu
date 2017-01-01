@@ -204,7 +204,7 @@ private:
 					args.GetReturnValue().Set(throw_ex(isolate, ex.what()));
 				}
 			});
-
+		
 		func_.Reset(isolate_, func);
 		js_func_.Reset(isolate_, js_func);
 

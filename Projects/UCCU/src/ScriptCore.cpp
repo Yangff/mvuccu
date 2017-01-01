@@ -62,3 +62,4 @@ void ScriptCore::RunScript() {
 	
 }
 
+ScriptCore *ScriptCore::_ins;
