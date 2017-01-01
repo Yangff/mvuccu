@@ -22,31 +22,49 @@ wchar_t* getTag(QtMsgType type) {
 	return L"[Unknown]";
 }
 
+wchar_t * toWideString(QString str) {
+	wchar_t * wstr = NULL;
+	wstr = new wchar_t[str.length() + 1];
+	str.toWCharArray(wstr);
+	wstr[str.length()] = 0;
+	return wstr;
+}
+
 void output(wchar_t *tag, QString msg) {
-	/*
 	if (uccuConfig::instance().enableLog() && !fLog) {
-		fwprintf(stdout, (QDir::tempPath() + "/RMMVLog.log\n").toStdWString().c_str());
-		fLog = _wfopen((QDir::tempPath() + "/RMMVLog.log").toStdWString().c_str(), L"wb");
+		auto tmp = QDir::tempPath();
+		auto path = toWideString(tmp + "/RMMVLog.log");
+		wprintf(L"%s\n", path);
+		fLog = _wfopen(path, L"wb");
+		delete[] path;
 	}
 	if (msg.length() <= 500) {
+		auto _msg = toWideString(msg);
 		if (uccuConfig::instance().enableConsoleWindow())
-			fwprintf(stdout, L"%s %s\n", tag, msg.toStdWString().c_str());
+			wprintf(L"%s %s\n", tag, _msg);
 		if (uccuConfig::instance().enableLog())
-			fwprintf(fLog, L"%s %s\n", tag, msg.toStdWString().c_str());
+			fwprintf(fLog, L"%s %s\n", tag, _msg);
+		delete[] _msg;
 	}
 	else {
-		if (uccuConfig::instance().enableConsoleWindow())
-			fwprintf(stdout, L"%s %s...\n", tag, msg.left(500).toStdWString().c_str());
+		if (uccuConfig::instance().enableConsoleWindow()) {
+			auto _msg = toWideString(msg.left(500));
+			wprintf(L"%s %s...\n", tag, _msg);
+			delete[] _msg;
+		}
 		if (uccuConfig::instance().enableLog()) {
-			fwprintf(fLog, L"%s %s", tag, msg.left(500).toStdWString().c_str());
+			auto _msg0 = toWideString(msg.left(500));
+			fwprintf(fLog, L"%s (Long Message) \n%s", tag, _msg0);
+			delete _msg0;
 			for (int i = 500; i < msg.length(); i += 500) {
-				fwprintf(fLog, L"%s", msg.mid(i, 500).toStdWString().c_str());
+				auto _msgi = toWideString(msg.mid(i, 500));
+				fwprintf(fLog, L"%s", _msgi);
+				delete[] _msgi;
 			}
-			fwprintf(fLog, L"\n");
+			fwprintf(fLog, L"(End Of Long Message)\n");
 		}
 	}
 	if (uccuConfig::instance().enableLog()) fflush(fLog);
-	*/
 }
 
 void platformQtMessageHandler(QtMsgType type, const QMessageLogContext & context, const QString & msg) {

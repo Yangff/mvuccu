@@ -123,6 +123,16 @@ public:
 		return *this;
 	}
 
+	/// Set another module as a read-only property
+	module& set_const(char const* name, v8::Handle<v8::ObjectTemplate> m)
+	{
+		v8::HandleScope scope(isolate_);
+
+		obj_->Set(v8pp::to_v8(isolate_, name), m,
+			v8::PropertyAttribute(v8::ReadOnly | v8::DontDelete));
+		return *this;
+	}
+
 	/// Set a value convertible to JavaScript as a read-only property
 	template<typename Value>
 	module& set_const(char const* name, Value const& value)

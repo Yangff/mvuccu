@@ -158,6 +158,7 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\ScriptCore.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\uccuConfig.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp" />
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformEnv.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -165,6 +166,7 @@
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\JSCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\LogManager.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ModManager.h" />
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\PlatformEnv.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlDocument.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlNode.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlProcesser.h" />

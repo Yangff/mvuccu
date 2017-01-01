@@ -28,7 +28,7 @@ BOOL WINAPI DllMain(
 bool __stdcall InitUCCU(IQt5Wrapper * wrap) {
 	if (uccuConfig::instance().enableConsoleWindow()) {
 		AllocConsole();
-		freopen("CONOUT$", "w+t", stdout);
+		freopen("CONOUT$", "wt", stdout);
 	}
 	return Injector::instance().Init(wrap);
 }

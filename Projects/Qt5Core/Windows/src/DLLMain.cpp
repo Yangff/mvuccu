@@ -41,6 +41,7 @@ BOOL WINAPI DllMain(
 			wrapper = new CQt5WrapperV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData);
 
 			if (!match) {
+				SetDllDirectory(L".\\mvuccu");
 				hUCCU = LoadLibrary(L"mvuccu/mvUCCU.dll");
 
 				if (hUCCU) {

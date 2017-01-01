@@ -8,18 +8,7 @@
 #include "LogManager.h"
 #include "JSCore.h"
 
-namespace global {
-	v8::UniquePersistent<v8::ObjectTemplate> global_templ;
-
-	v8::Handle<v8::ObjectTemplate> global(v8::Isolate *iso) {
-		return v8pp::to_local(iso, global_templ);
-	}
-
-	void init(v8::Isolate *iso) {
-		auto g = v8::ObjectTemplate::New(iso);
-		global::global_templ.Reset(iso, g);
-	}
-};
+#include "PlatformEnv.h"
 
 namespace console {
 	v8::UniquePersistent<v8::Value> _console;
@@ -51,7 +40,7 @@ namespace console {
 		m.set("err", &err);
 		auto c = m.new_instance();
 		_console.Reset(iso, c);
-		global::global(iso)->Set(iso, "console", c);
+		iso->GetCurrentContext()->Global()->Set(v8::String::NewFromUtf8(iso, "console"), c);
 	}
 
 	v8::Handle<v8::Value> console(v8::Isolate *iso) {
@@ -269,7 +258,6 @@ namespace fs {
 };
 
 
-#include <QtCore/qcoreapplication.h>
 #include <QtCore/QProcessEnvironment>
 
 namespace process {
@@ -289,8 +277,10 @@ namespace process {
 		q.insert(*p, *v);
 	}
 
+	v8::Persistent<v8::ObjectTemplate, v8::CopyablePersistentTraits<v8::ObjectTemplate>> environment;
+
 	void exit(int code = 0) {
-		QCoreApplication::exit(code);
+		::exit(code);
 	}
 
 	v8::Handle<v8::String> cwd() {
@@ -303,7 +293,7 @@ namespace process {
 
 		// platform
 #ifdef Q_OS_WIN
-		m.set_const("platform", "win32");
+		m.set_const("platform", v8::String::NewFromTwoByte(iso, (uint16_t*) L"win32"));
 #else
 		#ifdef Q_OS_MACX
 			m.set_const("platform", "darwin");
@@ -316,33 +306,34 @@ namespace process {
 		
 		v8::Handle<v8::ObjectTemplate> result = v8::ObjectTemplate::New(iso);
 		result->SetNamedPropertyHandler(GetEnv, SetEnv);
-		m.set("env", result->NewInstance());
-
+		//environment.Reset(iso, result);
+		m.set_const("env", result);
+		
 		// execPath
 
-		const char * _path = QCoreApplication::applicationFilePath().toUtf8().data();
-
-		m.set_const("execPath", _path);
-		m.set_const("pid", QCoreApplication::applicationPid());
+		auto _path = GetExecPathUTF8();
+		m.set_const("execPath", (const char *)_path);
+		delete[] _path;
+		m.set_const("pid", (unsigned int)GetPid());
 		m.set_const("version", "1.0.0");
 
 		m.set("exit", &exit);
 
 		m.set("cwd", &cwd);
 
-		auto args = QCoreApplication::arguments();
+/*		auto args = QCoreApplication::arguments();
 		v8::Local<v8::Array> argv = v8::Array::New(iso, args.length());
 		for (int i = 0; i < args.length(); i++) {
 			argv->Set(i, v8::String::NewFromUtf8(iso, args[i].toUtf8().data()));
 		}
-		m.set_const("argv", argv);
+		m.set_const("argv", argv);*/
 
 		auto i = m.new_instance();
 		i->Set(v8::String::NewFromUtf8(iso, "mainModule"), v8::String::NewFromUtf8(iso, ""));
 
 		_process.Reset(iso, i);
 		
-		global::global(iso)->Set(iso, "process", i);
+		iso->GetCurrentContext()->Global()->Set(v8::String::NewFromUtf8(iso, "process"), i);
 	}
 
 	v8::Handle<v8::Value> getProcess(v8::Isolate *iso) {
@@ -352,31 +343,36 @@ namespace process {
 };
 
 namespace vm {
-	v8::Local<v8::Script> _compile(v8::Isolate *iso, v8::Local<v8::Context> cxt, v8::Local<v8::String> source, v8::Local<v8::String> filename, int line, int col) {
-		v8::ScriptOrigin origin(filename, v8::Integer::New(iso, line), v8::Integer::New(iso, col));
-		v8::Local<v8::Script> script = v8::Script::Compile(cxt, source, &origin).ToLocalChecked();
-		return script;
-	}
 
 	v8::Local<v8::Value> _runInContext(v8::Isolate *iso, v8::Local<v8::Context> cxt, v8::Local<v8::String> source, v8::Local<v8::String> filename, int line, int col) {
 		v8::EscapableHandleScope handle_scope(iso);
-		
-		v8::Context::Scope context_scope(cxt);
 
 		v8::TryCatch try_catch(iso);
+		v8::ScriptOrigin origin(filename, v8::Integer::New(iso, line), v8::Integer::New(iso, col));
+		auto _script = v8::Script::Compile(cxt, source, &origin);
 
-		auto script = vm::_compile(iso, cxt, source, filename, 0, 0);
-		v8::Local<v8::Value> result = script->Run(cxt).ToLocalChecked();
+		if (_script.IsEmpty()) {
+			if (try_catch.HasCaught()) {
+				if (try_catch.HasTerminated())
+					iso->CancelTerminateExecution();
+				return try_catch.ReThrow();
+			}
+		}
+
+		auto script = _script.ToLocalChecked();
+		
+		auto result = script->Run(cxt);
+
+		if (result.IsEmpty()) {
+			return try_catch.ReThrow();
+		}
 
 		if (try_catch.HasCaught()) {
 			if (try_catch.HasTerminated())
 				iso->CancelTerminateExecution();
 			return try_catch.ReThrow();
 		}
-		if (result.IsEmpty()) {
-			return try_catch.ReThrow();
-		}
-		return result;
+		return handle_scope.Escape(result.ToLocalChecked());
 	}
 
 	v8::Local<v8::Value> GetFilename(v8::Local<v8::Value> x) {
@@ -433,11 +429,11 @@ namespace vm {
 			return;
 		}
 
-		auto context = v8::Context::New(isolate, NULL, global::global(isolate));
+		// auto context = v8::Context::New(isolate, NULL, global::global(isolate));
 		
 		auto result = _runInContext(
 			v8::Isolate::GetCurrent(),
-			context, 
+			isolate->GetCurrentContext(),
 			code, 
 			filename.As<v8::String>(),
 			lineOffset,
@@ -504,18 +500,19 @@ namespace native_module {
 				_f.close();
 				v8::Local<v8::Object> module = v8::Object::New(isolate);
 				v8::Local<v8::Object> exports = v8::Object::New(isolate);
-				module->Set(v8::String::NewFromUtf8(isolate, "exports"), exports);
+				auto str_exports = v8::String::NewFromUtf8(isolate, "exports");
+				module->Set(str_exports, exports);
 
 				auto filename = v8::String::NewFromUtf8(isolate, f.fileName().toUtf8().data());
 				auto dirname = v8::String::NewFromUtf8(isolate, f.absoluteDir().absolutePath().toUtf8().data());
 
-				v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global::global(isolate));
+				// v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global::global(isolate));
 				v8::Local<v8::String> source =
 					v8::String::NewFromUtf8(isolate, s.toUtf8().data(),
 						v8::NewStringType::kNormal).ToLocalChecked();
 				
 				v8::TryCatch try_catch(isolate);
-				v8::Local<v8::Value> result = vm::_runInContext(isolate, context, source, filename, 0, 0);
+				v8::Local<v8::Value> result = vm::_runInContext(isolate, isolate->GetCurrentContext(), source, filename, 0, 0);
 				if (try_catch.HasCaught()) {
 					if (try_catch.HasTerminated())
 						isolate->CancelTerminateExecution();
@@ -526,7 +523,7 @@ namespace native_module {
 				}
 				
 				auto func = v8::Local<v8::Function>::Cast(result);
-				result = v8pp::call_v8(isolate, func, context->Global(), exports, v8pp::wrap_function(isolate, "require", &require), module, dirname, filename);
+				result = v8pp::call_v8(isolate, func, isolate->GetCurrentContext()->Global(), exports, v8pp::wrap_function(isolate, "require", &require), module, dirname, filename);
 				if (try_catch.HasCaught()) {
 					if (try_catch.HasTerminated())
 						isolate->CancelTerminateExecution();
@@ -535,7 +532,8 @@ namespace native_module {
 				if (result.IsEmpty()) {
 					return try_catch.ReThrow();
 				}
-				addmodule(name, exports);
+				exports = module->Get(str_exports)->ToObject();
+				addmodule(name,  exports);
 				return handle_scope.Escape(exports);
 			}
 			return isolate->ThrowException(v8::String::NewFromUtf8(isolate, QString("Open file (%1) failed.").arg(f.absoluteFilePath()).toUtf8().data()));
@@ -551,7 +549,7 @@ namespace native_module {
 		ary->Set(1, v8::String::NewFromUtf8(iso, _wrapper[1]));
 		wrapper.Reset(iso, ary);
 
-		m.set("wrapper", ary);
+		m.set("wrapper", wrapper);
 		m.set("wrap", &wrap);
 		m.set("nonInternalExists", &nonInternalExists);
 		m.set("require", &require);
@@ -655,10 +653,23 @@ namespace ModAPI {
 
 
 void JSCore::initAll(v8::Isolate * iso) {
-	global::init(iso);
+	v8::TryCatch try_catch;
+	//global::init(iso);
 	console::init(iso);
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 	process::init(iso);
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 	auto nm = native_module::init(iso);
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 
 	native_module::addmodule("native_module", nm);
 	native_module::addmodule("fs", fs::init(iso));
@@ -666,13 +677,29 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("modapi", ModAPI::init(iso));
 
 	native_module::load("util", "./mvuccu/lib/util.js");
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 	native_module::load("assert", "./mvuccu/lib/assert.js");
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 	native_module::load("path", "./mvuccu/lib/path.js");
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 	native_module::load("module", "./mvuccu/lib/module.js");
+	if (try_catch.HasCaught()) {
+		try_catch.ReThrow();
+		return;
+	}
 }
 
-v8::Handle<v8::ObjectTemplate> JSCore::getGlobal(v8::Isolate * iso) {
-	return global::global(iso);
+v8::Handle<v8::Object> JSCore::getGlobal(v8::Isolate * iso) {
+	return iso->GetCurrentContext()->Global();
 }
 
 v8::Handle<v8::Value> JSCore::require(const char * module) {

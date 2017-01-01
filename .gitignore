@@ -234,3 +234,7 @@ Build-results
 *.opendb
 
 *.tlog
+
+*.db
+
+!/Binary/*

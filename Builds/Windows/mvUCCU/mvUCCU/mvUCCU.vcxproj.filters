@@ -60,6 +60,9 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\src\QmlDocument.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformEnv.cpp">
+      <Filter>Source Files\Platformrealted</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h">
@@ -93,6 +96,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\QmlDocument.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\Projects\UCCU\src\PlatformEnv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

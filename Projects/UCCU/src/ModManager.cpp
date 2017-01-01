@@ -54,5 +54,5 @@ Version ModManager::UCCUVersion()
 }
 
 ModManager::ModManager() {
-	m_bWaitingForRes = false; // TODO: Make this be true;
+	m_bWaitingForRes = true; 
 }
