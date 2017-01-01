@@ -11,6 +11,7 @@
 #include "v8pp/convert.hpp"
 #include "v8pp/function.hpp"
 #include "v8pp/module.hpp"
+#include "v8pp/class.hpp"
 #include "v8pp/throw_ex.hpp"
 
 #include <fstream>
@@ -91,17 +92,21 @@ void context::load_module(v8::FunctionCallbackInfo<v8::Value> const& args)
 
 			if (!module.handle)
 			{
-				throw std::runtime_error("load_module(" + name + "): could not load shared library " + filename);
+				throw std::runtime_error("load_module(" + name
+					+ "): could not load shared library " + filename);
 			}
 #if defined(WIN32)
-			void *sym = ::GetProcAddress((HMODULE)module.handle, STRINGIZE(V8PP_PLUGIN_INIT_PROC_NAME));
+			void *sym = ::GetProcAddress((HMODULE)module.handle,
+				STRINGIZE(V8PP_PLUGIN_INIT_PROC_NAME));
 #else
 			void *sym = dlsym(module.handle, STRINGIZE(V8PP_PLUGIN_INIT_PROC_NAME));
 #endif
 			if (!sym)
 			{
-				throw std::runtime_error("load_module(" + name + "): initialization function "
-					STRINGIZE(V8PP_PLUGIN_INIT_PROC_NAME) " not found in " + filename);
+				throw std::runtime_error("load_module(" + name
+					+ "): initialization function "
+					STRINGIZE(V8PP_PLUGIN_INIT_PROC_NAME)
+					" not found in " + filename);
 			}
 
 			using module_init_proc = v8::Handle<v8::Value>(*)(v8::Isolate*);
@@ -154,18 +159,19 @@ struct array_buffer_allocator : v8::ArrayBuffer::Allocator
 	}
 	void Free(void* data, size_t length)
 	{
-		free(data);
+		free(data); (void)length;
 	}
 };
 static array_buffer_allocator array_buffer_allocator_;
 
-context::context(v8::Isolate* isolate)
+context::context(v8::Isolate* isolate, v8::ArrayBuffer::Allocator* allocator)
 {
 	own_isolate_ = (isolate == nullptr);
 	if (own_isolate_)
 	{
 		v8::Isolate::CreateParams create_params;
-		create_params.array_buffer_allocator = &array_buffer_allocator_;
+		create_params.array_buffer_allocator =
+			allocator ? allocator : &array_buffer_allocator_;
 
 		isolate = v8::Isolate::New(create_params);
 		isolate->Enter();
@@ -177,8 +183,10 @@ context::context(v8::Isolate* isolate)
 	v8::Handle<v8::Value> data = detail::set_external_data(isolate_, this);
 	v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
 
-	global->Set(isolate_, "require", v8::FunctionTemplate::New(isolate_, context::load_module, data));
-	global->Set(isolate_, "run", v8::FunctionTemplate::New(isolate_, context::run_file, data));
+	global->Set(isolate_, "require",
+		v8::FunctionTemplate::New(isolate_, context::load_module, data));
+	global->Set(isolate_, "run",
+		v8::FunctionTemplate::New(isolate_, context::run_file, data));
 
 	v8::Handle<v8::Context> impl = v8::Context::New(isolate_, nullptr, global);
 	impl->Enter();
@@ -187,6 +195,9 @@ context::context(v8::Isolate* isolate)
 
 context::~context()
 {
+	// remove all class singletons before modules unload
+	cleanup(isolate_);
+
 	for (auto& kv : modules_)
 	{
 		dynamic_module& module = kv.second;
@@ -237,7 +248,8 @@ v8::Handle<v8::Value> context::run_file(std::string const& filename)
 	return run_script(std::string(begin, end), filename);
 }
 
-v8::Handle<v8::Value> context::run_script(std::string const& source, std::string const& filename)
+v8::Handle<v8::Value> context::run_script(std::string const& source,
+	std::string const& filename)
 {
 	v8::EscapableHandleScope scope(isolate_);
 

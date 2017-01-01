@@ -39,43 +39,90 @@ struct function_traits<R (Args...)>
 
 // function pointer
 template<typename R, typename ...Args>
-struct function_traits<R (*)(Args...)> : function_traits<R (Args...)> {};
+struct function_traits<R (*)(Args...)>
+	: function_traits<R (Args...)>
+{
+	using pointer_type = R (*)(Args...);
+};
 
 // member function pointer
 template<typename C, typename R, typename ...Args>
-struct function_traits<R (C::*)(Args...)> : function_traits<R (C&, Args...)>
+struct function_traits<R (C::*)(Args...)>
+	: function_traits<R (C&, Args...)>
 {
+	template<typename D = C>
+	using pointer_type = R (D::*)(Args...);
 };
 
 // const member function pointer
 template<typename C, typename R, typename ...Args>
-struct function_traits<R (C::*)(Args...) const> : function_traits<R (C const&, Args...)>
+struct function_traits<R (C::*)(Args...) const>
+	: function_traits<R (C const&, Args...)>
 {
+	template<typename D = C>
+	using pointer_type = R (D::*)(Args...) const;
 };
 
 // volatile member function pointer
 template<typename C, typename R, typename ...Args>
-struct function_traits<R(C::*)(Args...) volatile> : function_traits<R(C volatile&, Args...)>
+struct function_traits<R (C::*)(Args...) volatile>
+	: function_traits<R (C volatile&, Args...)>
 {
+	template<typename D = C>
+	using pointer_type = R (D::*)(Args...) volatile;
 };
 
 // const volatile member function pointer
 template<typename C, typename R, typename ...Args>
-struct function_traits<R(C::*)(Args...) const volatile> : function_traits<R(C const volatile&, Args...)>
+struct function_traits<R (C::*)(Args...) const volatile>
+	: function_traits<R (C const volatile&, Args...)>
 {
+	template<typename D = C>
+	using pointer_type = R (D::*)(Args...) const volatile;
 };
 
 // member object pointer
 template<typename C, typename R>
-struct function_traits<R (C::*)> : function_traits<R (C&)>
+struct function_traits<R (C::*)>
+	: function_traits<R (C&)>
 {
+	template<typename D = C>
+	using pointer_type = R (D::*);
+};
+
+// const member object pointer
+template<typename C, typename R>
+struct function_traits<const R (C::*)>
+	: function_traits<R (C const&)>
+{
+	template<typename D = C>
+	using pointer_type = const R (D::*);
+};
+
+// volatile member object pointer
+template<typename C, typename R>
+struct function_traits<volatile R (C::*)>
+	: function_traits<R (C volatile&)>
+{
+	template<typename D = C>
+	using pointer_type = volatile R (D::*);
+};
+
+// const volatile member object pointer
+template<typename C, typename R>
+struct function_traits<const volatile R (C::*)>
+	: function_traits<R (C const volatile&)>
+{
+	template<typename D = C>
+	using pointer_type = const volatile R (D::*);
 };
 
 // function object, std::function, lambda
 template<typename F>
 struct function_traits
 {
-	static_assert(!std::is_bind_expression<F>::value, "std::bind result is not supported yet");
+	static_assert(!std::is_bind_expression<F>::value,
+		"std::bind result is not supported yet");
 private:
 	using callable_traits = function_traits<decltype(&F::operator())>;
 public:
@@ -90,10 +137,12 @@ template<typename F>
 struct function_traits<F&&> : function_traits<F> {};
 
 template<typename F>
-using is_void_return = std::is_same<void, typename function_traits<F>::return_type>;
+using is_void_return = std::is_same<void,
+	typename function_traits<F>::return_type>;
 
 template<typename F, bool is_class>
-struct is_callable_impl : std::is_function<typename std::remove_pointer<F>::type>
+struct is_callable_impl
+	: std::is_function<typename std::remove_pointer<F>::type>
 {
 };
 
@@ -168,7 +217,8 @@ using make_index_sequence = make_integer_sequence<size_t, N>;
 // apply_tuple
 //
 template<typename F, typename Tuple, size_t... Indices>
-typename function_traits<F>::return_type apply_impl(F&& f, Tuple&& t, index_sequence<Indices...>)
+typename function_traits<F>::return_type apply_impl(
+	F&& f, Tuple&& t, index_sequence<Indices...>)
 {
 	return std::forward<F>(f)(std::get<Indices>(std::forward<Tuple>(t))...);
 }
@@ -176,7 +226,8 @@ typename function_traits<F>::return_type apply_impl(F&& f, Tuple&& t, index_sequ
 template<typename F, typename Tuple>
 typename function_traits<F>::return_type apply_tuple(F&& f, Tuple&& t)
 {
-	using Indices = make_index_sequence<std::tuple_size<typename std::decay<Tuple>::type>::value>;
+	using Indices = make_index_sequence<
+		std::tuple_size<typename std::decay<Tuple>::type>::value>;
 	return apply_impl(std::forward<F>(f), std::forward<Tuple>(t), Indices{});
 }
 
@@ -184,6 +235,58 @@ template<typename F, typename ...Args>
 typename function_traits<F>::return_type apply(F&& f, Args&&... args)
 {
 	return std::forward<F>(f)(std::forward<Args>(args)...);
+}
+
+/// Type information for custom RTTI
+class type_info
+{
+public:
+	std::string const& name() const { return name_; }
+	bool operator==(type_info const& other) const { return name_ == other.name_; }
+	bool operator!=(type_info const& other) const { return name_ != other.name_; }
+private:
+	template<typename T> friend type_info type_id();
+	type_info(char const* name, size_t size)
+		: name_(name, size)
+	{
+	}
+	std::string name_;
+};
+
+/// Get type information for type T
+/// Idea  borrowed from https://github.com/Manu343726/ctti
+template<typename T>
+type_info type_id()
+{
+#if defined(_MSC_VER)
+	#define V8PP_PRETTY_FUNCTION __FUNCSIG__
+	#define V8PP_PRETTY_FUNCTION_PREFIX "class v8pp::detail::type_info __cdecl v8pp::detail::type_id<"
+	#define V8PP_PRETTY_FUNCTION_SUFFIX ">(void)"
+#elif defined(__clang__) || defined(__GNUC__)
+	#define V8PP_PRETTY_FUNCTION __PRETTY_FUNCTION__
+	#if !defined(__clang__)
+		#define V8PP_PRETTY_FUNCTION_PREFIX "v8pp::detail::type_info v8pp::detail::type_id() [with T = "
+	#else
+		#define V8PP_PRETTY_FUNCTION_PREFIX "v8pp::detail::type_info v8pp::detail::type_id() [T = "
+	#endif
+	#define V8PP_PRETTY_FUNCTION_SUFFIX "]"
+#else
+	#error "Unknown compiler"
+#endif
+
+#define V8PP_PRETTY_FUNCTION_LEN (sizeof(V8PP_PRETTY_FUNCTION) - 1)
+#define V8PP_PRETTY_FUNCTION_PREFIX_LEN (sizeof(V8PP_PRETTY_FUNCTION_PREFIX) - 1)
+#define V8PP_PRETTY_FUNCTION_SUFFIX_LEN (sizeof(V8PP_PRETTY_FUNCTION_SUFFIX) - 1)
+
+	return type_info(V8PP_PRETTY_FUNCTION + V8PP_PRETTY_FUNCTION_PREFIX_LEN,
+		V8PP_PRETTY_FUNCTION_LEN - V8PP_PRETTY_FUNCTION_PREFIX_LEN - V8PP_PRETTY_FUNCTION_SUFFIX_LEN);
+
+#undef V8PP_PRETTY_FUNCTION
+#undef V8PP_PRETTY_FUNCTION_PREFIX
+#undef V8PP_PRETTY_FUNCTION_SUFFFIX
+#undef V8PP_PRETTY_FUNCTION_LEN
+#undef V8PP_PRETTY_FUNCTION_PREFIX_LEN
+#undef V8PP_PRETTY_FUNCTION_SUFFFIX_LEN
 }
 
 }} // namespace v8pp::detail

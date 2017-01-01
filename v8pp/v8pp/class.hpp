@@ -9,7 +9,10 @@
 #ifndef V8PP_CLASS_HPP_INCLUDED
 #define V8PP_CLASS_HPP_INCLUDED
 
+#include <cstdio>
+
 #include <algorithm>
+#include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -27,18 +30,33 @@ class class_;
 
 namespace detail {
 
+inline std::string class_name(type_info const& info)
+{
+	return "v8pp::class_<" + info.name() + '>';
+}
+
+inline std::string pointer_str(void const* ptr)
+{
+	std::string buf(sizeof(void*) * 2 + 3, 0); // +3 for 0x and \0 terminator
+	int const len = 
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
+		sprintf_s(&buf[0], buf.size(), "%p", ptr);
+#else
+		snprintf(&buf[0], buf.size(), "%p", ptr);
+#endif
+	buf.resize(len < 0? 0 : len);
+	return buf;
+}
+
 class class_info
 {
 public:
-	using type_index = unsigned;
-
-	class_info(type_index type)
-		: type_(type)
-	{
-	}
-
+	explicit class_info(type_info const& type) : type_(type) {}
 	class_info(class_info const&) = delete;
 	class_info& operator=(class_info const&) = delete;
+	virtual ~class_info() = default;
+
+	type_info const& type() const { return type_; }
 
 	using cast_function = void* (*)(void* ptr);
 
@@ -48,14 +66,15 @@ public:
 			[info](base_class_info const& base) { return base.info == info; });
 		if (it != bases_.end())
 		{
-			assert(false && "duplicated inheritance");
-			throw std::runtime_error("duplicated base class");
+			//assert(false && "duplicated inheritance");
+			throw std::runtime_error(class_name(type_)
+				+ " is already inherited from " + class_name(info->type_));
 		}
 		bases_.emplace_back(info, cast);
 		info->derivatives_.emplace_back(this);
 	}
 
-	bool cast(void*& ptr, type_index type) const
+	bool cast(void*& ptr, type_info const& type) const
 	{
 		if (type == type_ || !ptr)
 		{
@@ -86,15 +105,20 @@ public:
 		return false;
 	}
 
-	template<typename T>
-	void add_object(T* object, persistent<v8::Object>&& handle)
+	void add_object(void* object, persistent<v8::Object>&& handle)
 	{
-		assert(objects_.find(object) == objects_.end() && "duplicate object");
+		auto it = objects_.find(object);
+		if (it != objects_.end())
+		{
+			//assert(false && "duplicate object");
+			throw std::runtime_error(class_name(type())
+				+ " duplicate object " + pointer_str(object));
+		}
 		objects_.emplace(object, std::move(handle));
 	}
 
-	template<typename T>
-	void remove_object(v8::Isolate* isolate, T* object, void (*destroy)(v8::Isolate* isolate, T* obj) = nullptr)
+	void remove_object(v8::Isolate* isolate, void* object,
+		void (*destroy)(v8::Isolate* isolate, void* obj) = nullptr)
 	{
 		auto it = objects_.find(object);
 		assert(objects_.find(object) != objects_.end() && "no object");
@@ -102,10 +126,12 @@ public:
 		{
 			if (!it->second.IsNearDeath())
 			{
-				// remove pointer to wrapped  C++ object from V8 Object internal field
-				// to disable unwrapping for this V8 Object
-				assert(to_local(isolate, it->second)->GetAlignedPointerFromInternalField(0) == object);
-				to_local(isolate, it->second)->SetAlignedPointerInInternalField(0, nullptr);
+				// remove pointer to wrapped  C++ object from V8 Object
+				// internal field to disable unwrapping for this V8 Object
+				assert(to_local(isolate, it->second)
+					->GetAlignedPointerFromInternalField(0) == object);
+				to_local(isolate, it->second)
+					->SetAlignedPointerInInternalField(0, nullptr);
 			}
 			it->second.Reset();
 			if (destroy)
@@ -116,15 +142,15 @@ public:
 		}
 	}
 
-	template<typename T>
-	void remove_objects(v8::Isolate* isolate, void (*destroy)(v8::Isolate* isolate, T* obj))
+	void remove_objects(v8::Isolate* isolate,
+		void (*destroy)(v8::Isolate* isolate, void* obj))
 	{
 		for (auto& object : objects_)
 		{
 			object.second.Reset();
 			if (destroy)
 			{
-				destroy(isolate, static_cast<T*>(object.first));
+				destroy(isolate, object.first);
 			}
 		}
 		objects_.clear();
@@ -147,15 +173,6 @@ public:
 		return result;
 	}
 
-protected:
-	static type_index register_class()
-	{
-		static type_index next_index = 0;
-		return next_index++;
-	}
-
-	type_index type() const { return type_; }
-
 private:
 	struct base_class_info
 	{
@@ -169,7 +186,7 @@ private:
 		}
 	};
 
-	type_index const type_;
+	type_info const type_;
 	std::vector<base_class_info> bases_;
 	std::vector<class_info*> derivatives_;
 
@@ -177,34 +194,152 @@ private:
 };
 
 template<typename T>
+class class_singleton;
+
+class class_singletons
+{
+public:
+	template<typename T>
+	static class_singleton<T>& add_class(v8::Isolate* isolate)
+	{
+		class_singletons* singletons = instance(add, isolate);
+		type_info const type = type_id<T>();
+		auto it = singletons->find(type);
+		if (it != singletons->classes_.end())
+		{
+			//assert(false && "class already registred");
+			throw std::runtime_error(class_name(type)
+				+ " is already exist in isolate " + pointer_str(isolate));
+		}
+		singletons->classes_.emplace_back(new class_singleton<T>(isolate, type));
+		return *static_cast<class_singleton<T>*>(singletons->classes_.back().get());
+	}
+
+	template<typename T>
+	static void remove_class(v8::Isolate* isolate)
+	{
+		class_singletons* singletons = instance(get, isolate);
+		if (singletons)
+		{
+			type_info const type = type_id<T>();
+			auto it = singletons->find(type);
+			if (it != singletons->classes_.end())
+			{
+				singletons->classes_.erase(it);
+				if (singletons->classes_.empty())
+				{
+					instance(remove, isolate);
+				}
+			}
+		}
+	}
+
+	template<typename T>
+	static class_singleton<T>& find_class(v8::Isolate* isolate)
+	{
+		class_singletons* singletons = instance(get, isolate);
+		type_info const type = type_id<T>();
+		if (singletons)
+		{
+			auto it = singletons->find(type);
+			if (it != singletons->classes_.end())
+			{
+				return *static_cast<class_singleton<T>*>(it->get());
+			}
+		}
+		//assert(false && "class not registered");
+		throw std::runtime_error(class_name(type)
+			+ " not found in isolate " + pointer_str(isolate));
+	}
+
+	static void remove_all(v8::Isolate* isolate)
+	{
+		instance(remove, isolate);
+	}
+
+private:
+	using classes = std::vector<std::unique_ptr<class_info>>;
+	classes classes_;
+
+	classes::iterator find(type_info const& type)
+	{
+		return std::find_if(classes_.begin(), classes_.end(),
+			[&type](std::unique_ptr<class_info> const& info)
+			{
+				return info->type() == type;
+			});
+	}
+
+	enum operation { get, add, remove };
+	static class_singletons* instance(operation op, v8::Isolate* isolate)
+	{
+#if defined(V8PP_ISOLATE_DATA_SLOT)
+		class_singletons* instances = static_cast<class_singletons*>(
+			isolate->GetData(V8PP_ISOLATE_DATA_SLOT));
+		switch (op)
+		{
+		case get:
+			return instances;
+		case add:
+			if (!instances)
+			{
+				instances = new class_singletons;
+				isolate->SetData(V8PP_ISOLATE_DATA_SLOT, instances);
+			}
+			return instances;
+		case remove:
+			if (instances)
+			{
+				delete instances;
+				isolate->SetData(V8PP_ISOLATE_DATA_SLOT, nullptr);
+			}
+		default:
+			return nullptr;
+		}
+#else
+		static std::unordered_map<v8::Isolate*, class_singletons> instances;
+		switch (op)
+		{
+		case get:
+			{
+				auto it = instances.find(isolate);
+				return it != instances.end()? &it->second : nullptr;
+			}
+		case add:
+			return &instances[isolate];
+		case remove:
+			instances.erase(isolate);
+		default:
+			return nullptr;
+		}
+#endif
+	}
+};
+
+template<typename T>
 class class_singleton : public class_info
 {
-	static type_index class_type()
-	{
-		static type_index const my_type = class_info::register_class();
-		return my_type;
-	}
-private:
-	class_singleton(v8::Isolate* isolate, type_index type)
+public:
+	class_singleton(v8::Isolate* isolate, type_info const& type)
 		: class_info(type)
 		, isolate_(isolate)
-		, ctor_(nullptr)
 	{
 		v8::Local<v8::FunctionTemplate> func = v8::FunctionTemplate::New(isolate_);
 		v8::Local<v8::FunctionTemplate> js_func = v8::FunctionTemplate::New(isolate_,
 			[](v8::FunctionCallbackInfo<v8::Value> const& args)
+		{
+			v8::Isolate* isolate = args.GetIsolate();
+			try
 			{
-				v8::Isolate* isolate = args.GetIsolate();
-				try
-				{
-					return args.GetReturnValue().Set(instance(isolate).wrap_object(args));
-				}
-				catch (std::exception const& ex)
-				{
-					args.GetReturnValue().Set(throw_ex(isolate, ex.what()));
-				}
-			});
-		
+				return args.GetReturnValue().Set(
+					class_singletons::find_class<T>(isolate).wrap_object(args));
+			}
+			catch (std::exception const& ex)
+			{
+				args.GetReturnValue().Set(throw_ex(isolate, ex.what()));
+			}
+		});
+
 		func_.Reset(isolate_, func);
 		js_func_.Reset(isolate_, js_func);
 
@@ -212,15 +347,30 @@ private:
 		//  0 - pointer to a wrapped C++ object
 		//  1 - pointer to the class_singleton
 		func->InstanceTemplate()->SetInternalFieldCount(2);
+
+		// no class constructor available by default
+		ctor_ = nullptr;
+		// use destructor from factory<T>::destroy()
+		dtor_ = [](v8::Isolate* isolate, void* obj)
+		{
+			factory<T>::destroy(isolate, static_cast<T*>(obj));
+		};
 	}
 
-	~class_singleton() {}
+	class_singleton(class_singleton const&) = delete;
+	class_singleton& operator=(class_singleton const&) = delete;
+
+	~class_singleton()
+	{
+		destroy_objects();
+	}
 
 	v8::Handle<v8::Object> wrap(T* object, bool destroy_after)
 	{
 		v8::EscapableHandleScope scope(isolate_);
 
-		v8::Local<v8::Object> obj = class_function_template()->GetFunction()->NewInstance();
+		v8::Local<v8::Object> obj = class_function_template()
+			->GetFunction()->NewInstance();
 		obj->SetAlignedPointerInInternalField(0, object);
 		obj->SetAlignedPointerInInternalField(1, this);
 
@@ -236,12 +386,12 @@ private:
 			{
 				v8::Isolate* isolate = data.GetIsolate();
 				T* object = data.GetParameter();
-				instance(isolate).destroy_object(object);
+				class_singletons::find_class<T>(isolate).destroy_object(object);
 			}
 #ifdef V8_USE_WEAK_CB_INFO
-			,v8::WeakCallbackType::kParameter
+				, v8::WeakCallbackType::kParameter
 #endif
-			);
+				);
 		}
 		else
 		{
@@ -254,92 +404,19 @@ private:
 			{
 				v8::Isolate* isolate = data.GetIsolate();
 				T* object = data.GetParameter();
-				instance(isolate).remove_object(isolate, object);
+				class_singletons::find_class<T>(isolate)
+					.remove_object(isolate, object);
 			}
 #ifdef V8_USE_WEAK_CB_INFO
-			,v8::WeakCallbackType::kParameter
+				, v8::WeakCallbackType::kParameter
 #endif
-			);
+				);
 
 		}
 
 		class_info::add_object(object, std::move(pobj));
 
 		return scope.Escape(obj);
-	}
-
-	using class_instances = std::vector<void*>;
-public:
-	static class_singleton& create(v8::Isolate* isolate)
-	{
-		// Get pointer to singleton instances from v8::Isolate
-		class_instances* singletons =
-			static_cast<class_instances*>(isolate->GetData(V8PP_ISOLATE_DATA_SLOT));
-		if (!singletons)
-		{
-			// No singletons map yet, create and store it
-			singletons = new class_instances;
-			isolate->SetData(V8PP_ISOLATE_DATA_SLOT, singletons);
-		}
-
-		// Get singleton instance from the the list by class_type
-		type_index const my_type = class_type();
-		if (my_type < singletons->size())
-		{
-			throw std::runtime_error("v8pp::class_ already created");
-		}
-
-		class_singleton* result = new class_singleton(isolate, my_type);
-		singletons->emplace_back(result);
-
-		return *result;
-	}
-
-	static void destroy(v8::Isolate* isolate)
-	{
-		class_instances* singletons =
-			static_cast<class_instances*>(isolate->GetData(V8PP_ISOLATE_DATA_SLOT));
-		if (singletons)
-		{
-			type_index const my_type = class_type();
-			if (my_type < singletons->size())
-			{
-				class_singleton* instance = static_cast<class_singleton*>((*singletons)[my_type]);
-				if (instance->type() == my_type)
-				{
-					instance->destroy_objects();
-					delete instance;
-					(*singletons)[my_type] = nullptr;
-					size_t const null_count = std::count(singletons->begin(), singletons->end(), nullptr);
-					if (null_count == singletons->size())
-					{
-						delete singletons;
-						isolate->SetData(V8PP_ISOLATE_DATA_SLOT, nullptr);
-					}
-				}
-			}
-		}
-	}
-
-	static class_singleton& instance(v8::Isolate* isolate)
-	{
-		// Get pointer to singleton instances from v8::Isolate
-		class_instances* singletons =
-			static_cast<class_instances*>(isolate->GetData(V8PP_ISOLATE_DATA_SLOT));
-		if (singletons)
-		{
-			type_index const my_type = class_type();
-			class_singleton* result;
-			if (my_type < singletons->size())
-			{
-				result = static_cast<class_singleton*>((*singletons)[my_type]);
-				if (result && result->type() == my_type)
-				{
-					return *result;
-				}
-			}
-		}
-		throw std::runtime_error("v8pp::class_ not created");
 	}
 
 	v8::Isolate* isolate() { return isolate_; }
@@ -368,7 +445,7 @@ public:
 	template<typename U>
 	void inherit()
 	{
-		class_singleton<U>* base = &class_singleton<U>::instance(isolate_);
+		class_singleton<U>* base = &class_singletons::find_class<U>(isolate_);
 		add_base(base, [](void* ptr) -> void*
 			{
 				return static_cast<U*>(static_cast<T*>(ptr));
@@ -388,7 +465,12 @@ public:
 
 	v8::Handle<v8::Object> wrap_object(v8::FunctionCallbackInfo<v8::Value> const& args)
 	{
-		return ctor_? wrap_object(ctor_(args)) : throw std::runtime_error("create is not allowed");
+		if (!ctor_)
+		{
+			//assert(false && "create not allowed");
+			throw std::runtime_error(class_name(type()) + " has no constructor");
+		}
+		return wrap_object(ctor_(args));
 	}
 
 	T* unwrap_object(v8::Local<v8::Value> value)
@@ -401,8 +483,9 @@ public:
 			if (obj->InternalFieldCount() == 2)
 			{
 				void* ptr = obj->GetAlignedPointerFromInternalField(0);
-				class_info* info = static_cast<class_info*>(obj->GetAlignedPointerFromInternalField(1));
-				if (info && info->cast(ptr, class_type()))
+				class_info* info = static_cast<class_info*>(
+					obj->GetAlignedPointerFromInternalField(1));
+				if (info && info->cast(ptr, type()))
 				{
 					return static_cast<T*>(ptr);
 				}
@@ -419,17 +502,18 @@ public:
 
 	void destroy_objects()
 	{
-		class_info::remove_objects(isolate_, &factory<T>::destroy);
+		class_info::remove_objects(isolate_, dtor_);
 	}
 
 	void destroy_object(T* obj)
 	{
-		class_info::remove_object(isolate_, obj, &factory<T>::destroy);
+		class_info::remove_object(isolate_, obj, dtor_);
 	}
 
 private:
 	v8::Isolate* isolate_;
-	std::function<T* (v8::FunctionCallbackInfo<v8::Value> const& args)> ctor_;
+	T* (*ctor_)(v8::FunctionCallbackInfo<v8::Value> const& args);
+	void (*dtor_)(v8::Isolate*, void*);
 
 	v8::UniquePersistent<v8::FunctionTemplate> func_;
 	v8::UniquePersistent<v8::FunctionTemplate> js_func_;
@@ -445,7 +529,7 @@ class class_
 	detail::class_singleton<T>& class_singleton_;
 public:
 	explicit class_(v8::Isolate* isolate)
-		: class_singleton_(class_singleton::create(isolate))
+		: class_singleton_(detail::class_singletons::add_class<T>(isolate))
 	{
 	}
 
@@ -473,19 +557,23 @@ public:
 		std::is_member_function_pointer<Method>::value, class_&>::type
 	set(char const *name, Method mem_func)
 	{
+		using mem_func_type =
+			typename detail::function_traits<Method>::template pointer_type<T>;
+
 		class_singleton_.class_function_template()->PrototypeTemplate()->Set(
-			isolate(), name, wrap_function_template(isolate(), mem_func));
+			isolate(), name, wrap_function_template(isolate(),
+				static_cast<mem_func_type>(mem_func)));
 		return *this;
 	}
 
 	/// Set static class function
-	template<typename Function>
-	typename std::enable_if<
-		detail::is_callable<Function>::value, class_&>::type
-	set(char const *name, Function func)
+	template<typename Function,
+		typename Func = typename std::decay<Function>::type>
+	typename std::enable_if<detail::is_callable<Func>::value, class_&>::type
+	set(char const *name, Function&& func)
 	{
 		class_singleton_.js_function_template()->Set(isolate(), name,
-			wrap_function_template(isolate(), func));
+			wrap_function_template(isolate(), std::forward<Func>(func)));
 		return *this;
 	}
 
@@ -497,18 +585,20 @@ public:
 	{
 		v8::HandleScope scope(isolate());
 
-		v8::AccessorGetterCallback getter = &member_get<Attribute>;
-		v8::AccessorSetterCallback setter = &member_set<Attribute>;
+		using attribute_type = typename
+			detail::function_traits<Attribute>::template pointer_type<T>;
+		v8::AccessorGetterCallback getter = &member_get<attribute_type>;
+		v8::AccessorSetterCallback setter = &member_set<attribute_type>;
 		if (readonly)
 		{
 			setter = nullptr;
 		}
 
-		v8::Handle<v8::Value> data = detail::set_external_data(isolate(), attribute);
-		v8::PropertyAttribute const prop_attrs = v8::PropertyAttribute(v8::DontDelete | (setter? 0 : v8::ReadOnly));
-
-		class_singleton_.class_function_template()->PrototypeTemplate()->SetAccessor(
-			v8pp::to_v8(isolate(), name), getter, setter, data, v8::DEFAULT, prop_attrs);
+		class_singleton_.class_function_template()->PrototypeTemplate()
+			->SetAccessor(v8pp::to_v8(isolate(), name), getter, setter,
+				detail::set_external_data(isolate(),
+					std::forward<Attribute>(attribute)), v8::DEFAULT,
+				v8::PropertyAttribute(v8::DontDelete | (setter? 0 : v8::ReadOnly)));
 		return *this;
 	}
 
@@ -516,33 +606,40 @@ public:
 	template<typename GetMethod, typename SetMethod>
 	typename std::enable_if<std::is_member_function_pointer<GetMethod>::value
 		&& std::is_member_function_pointer<SetMethod>::value, class_&>::type
-	set(char const *name, property_<GetMethod, SetMethod> prop)
+	set(char const *name, property_<GetMethod, SetMethod>&& prop)
 	{
+		using prop_type = property_<GetMethod, SetMethod>;
+
 		v8::HandleScope scope(isolate());
 
-		v8::AccessorGetterCallback getter = property_<GetMethod, SetMethod>::get;
-		v8::AccessorSetterCallback setter = property_<GetMethod, SetMethod>::set;
-		if (property_<GetMethod, SetMethod>::is_readonly)
+		using property_type = property_<
+			typename detail::function_traits<GetMethod>::template pointer_type<T>,
+			typename detail::function_traits<SetMethod>::template pointer_type<T>
+		>;
+		v8::AccessorGetterCallback getter = property_type::get;
+		v8::AccessorSetterCallback setter = property_type::set;
+		if (prop_type::is_readonly)
 		{
 			setter = nullptr;
 		}
 
-		v8::Handle<v8::Value> data = detail::set_external_data(isolate(), prop);
-		v8::PropertyAttribute const prop_attrs = v8::PropertyAttribute(v8::DontDelete | (setter? 0 : v8::ReadOnly));
-
-		class_singleton_.class_function_template()->PrototypeTemplate()->SetAccessor(v8pp::to_v8(isolate(), name),
-			getter, setter, data, v8::DEFAULT, prop_attrs);
+		class_singleton_.class_function_template()->PrototypeTemplate()
+			->SetAccessor(v8pp::to_v8(isolate(), name),getter, setter,
+				detail::set_external_data(isolate(),
+					std::forward<prop_type>(prop)), v8::DEFAULT,
+				v8::PropertyAttribute(v8::DontDelete | (setter ? 0 : v8::ReadOnly)));
 		return *this;
 	}
 
 	/// Set value as a read-only property
 	template<typename Value>
-	class_& set_const(char const* name, Value value)
+	class_& set_const(char const* name, Value const& value)
 	{
 		v8::HandleScope scope(isolate());
 
-		class_singleton_.class_function_template()->PrototypeTemplate()->Set(v8pp::to_v8(isolate(), name),
-			to_v8(isolate(), value), v8::PropertyAttribute(v8::ReadOnly | v8::DontDelete));
+		class_singleton_.class_function_template()->PrototypeTemplate()
+			->Set(v8pp::to_v8(isolate(), name), to_v8(isolate(), value),
+				v8::PropertyAttribute(v8::ReadOnly | v8::DontDelete));
 		return *this;
 	}
 
@@ -563,26 +660,30 @@ public:
 	/// It will not take ownership of the C++ pointer.
 	static v8::Handle<v8::Object> reference_external(v8::Isolate* isolate, T* ext)
 	{
-		return class_singleton::instance(isolate).wrap_external_object(ext);
+		return detail::class_singletons::find_class<T>(isolate)
+			.wrap_external_object(ext);
 	}
 
 	/// Remove external reference from JavaScript
 	static void unreference_external(v8::Isolate* isolate, T* ext)
 	{
-		return class_singleton::instance(isolate).remove_object(isolate, ext);
+		return detail::class_singletons::find_class<T>(isolate)
+			.remove_object(isolate, ext);
 	}
 
 	/// As reference_external but delete memory for C++ object
 	/// when JavaScript object is deleted. You must use "new" to allocate ext.
 	static v8::Handle<v8::Object> import_external(v8::Isolate* isolate, T* ext)
 	{
-		return class_singleton::instance(isolate).wrap_object(ext);
+		return detail::class_singletons::find_class<T>(isolate)
+			.wrap_object(ext);
 	}
 
 	/// Get wrapped object from V8 value, may return nullptr on fail.
 	static T* unwrap_object(v8::Isolate* isolate, v8::Handle<v8::Value> value)
 	{
-		return class_singleton::instance(isolate).unwrap_object(value);
+		return detail::class_singletons::find_class<T>(isolate)
+			.unwrap_object(value);
 	}
 
 	/// Create a wrapped C++ object and import it into JavaScript
@@ -596,30 +697,32 @@ public:
 	/// Find V8 object handle for a wrapped C++ object, may return empty handle on fail.
 	static v8::Handle<v8::Object> find_object(v8::Isolate* isolate, T const* obj)
 	{
-		return class_singleton::instance(isolate).find_object(obj);
+		return detail::class_singletons::find_class<T>(isolate)
+			.find_object(obj);
 	}
 
 	/// Destroy wrapped C++ object
 	static void destroy_object(v8::Isolate* isolate, T* obj)
 	{
-		class_singleton::instance(isolate).destroy_object(obj);
+		detail::class_singletons::find_class<T>(isolate).destroy_object(obj);
 	}
 
 	/// Destroy all wrapped C++ objects of this class
 	static void destroy_objects(v8::Isolate* isolate)
 	{
-		class_singleton::instance(isolate).destroy_objects();
+		detail::class_singletons::find_class<T>(isolate).destroy_objects();
 	}
 
 	/// Destroy all wrapped C++ objects and this binding class_
 	static void destroy(v8::Isolate* isolate)
 	{
-		class_singleton::destroy(isolate);
+		detail::class_singletons::remove_class<T>(isolate);
 	}
 
 private:
 	template<typename Attribute>
-	static void member_get(v8::Local<v8::String>, v8::PropertyCallbackInfo<v8::Value> const& info)
+	static void member_get(v8::Local<v8::String>,
+		v8::PropertyCallbackInfo<v8::Value> const& info)
 	{
 		v8::Isolate* isolate = info.GetIsolate();
 
@@ -629,7 +732,8 @@ private:
 	}
 
 	template<typename Attribute>
-	static void member_set(v8::Local<v8::String>, v8::Local<v8::Value> value, v8::PropertyCallbackInfo<void> const& info)
+	static void member_set(v8::Local<v8::String>, v8::Local<v8::Value> value,
+		v8::PropertyCallbackInfo<void> const& info)
 	{
 		v8::Isolate* isolate = info.GetIsolate();
 
@@ -639,6 +743,11 @@ private:
 		self.*ptr = v8pp::from_v8<attr_type>(isolate, value);
 	}
 };
+
+inline void cleanup(v8::Isolate* isolate)
+{
+	detail::class_singletons::remove_all(isolate);
+}
 
 } // namespace v8pp
 

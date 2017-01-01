@@ -1,11 +1,11 @@
 CXX ?= c++
-CXXFLAGS += -Wall -Wextra -std=c++11 -fPIC
+CXXFLAGS += -Wall -Wextra -std=c++11 -fPIC -DV8PP_ISOLATE_DATA_SLOT=0
 LDFLAGS += -shared
 AR = ar
 ARFLAGS = rcs
 
 INCLUDES = -I. -I./v8pp -isystem./v8/include -isystem./v8 -isystem/usr -isystem/usr/lib
-LIBS = -L./v8/lib -lv8 -lv8_libplatform -lv8_base -lv8_libbase -L. -lv8pp -ldl -lpthread
+LIBS = -L./v8/lib -lv8 -lv8_libplatform -lv8_base -lv8_libbase -licui18n -licuuc -L. -lv8pp -ldl -lpthread
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@

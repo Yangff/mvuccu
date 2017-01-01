@@ -1,5 +1,6 @@
-[![Build Status](https://travis-ci.org/pmed/v8pp.svg)](https://travis-ci.org/pmed/v8pp)
-
+[![Travis Build status](https://travis-ci.org/pmed/v8pp.svg)](https://travis-ci.org/pmed/v8pp)
+[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/pmed/v8pp?svg=true)](https://ci.appveyor.com/project/pmed/v8pp)
+[![NPM](https://img.shields.io/npm/v/v8pp.svg)](https://npmjs.com/package/v8pp)
 [![Join the chat at https://gitter.im/pmed/v8pp](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pmed/v8pp?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # v8pp
@@ -75,7 +76,7 @@ mylib.prop = x.prop + x.fun();
 
 ## Node.js and io.js addons
 
-The library is suitable to make [Node.js](http://nodejs.org/) and [io.js](https://iojs.org/) addons. See [addons](doc/addons.md) document.
+The library is suitable to make [Node.js](http://nodejs.org/) and [io.js](https://iojs.org/) addons. See [addons](docs/addons.md) document.
 
 ```c++
 
@@ -349,6 +350,7 @@ The library uses several preprocessor macros, defined in `v8pp/config.hpp` file:
 
 ## v8pp alternatives
 
+* [nbind](https://github.com/charto/nbind)
 * [vu8](https://github.com/tsa/vu8), abandoned
 * [v8-juice](http://code.google.com/p/v8-juice/), abandoned
 * Script bindng in [cpgf](https://github.com/cpgf/cpgf)
