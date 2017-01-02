@@ -2,7 +2,7 @@
 
 #include <QtCore/qmap.h>
 #include <QtCore/qdir.h>
-
+#include <functional>
 
 class filenode;
 
@@ -29,6 +29,7 @@ public:
 	// bool UnlockQResource(QString path, int lockId);
 	bool UpdateFileContent(QString path, const QByteArray &content /* , int lockId = 0 */);
 	bool AddFile(QString path, const QByteArray &data /* , int lockId = 0 */ );
+	void Each(QString path, std::function<void(QString, bool)> func);
 	
 	////// rcc
 	

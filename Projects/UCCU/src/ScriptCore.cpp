@@ -36,7 +36,6 @@ ScriptCore::ScriptCore() {
 
 std::wstring GetErrorMessage(v8::Isolate*iso, v8::Handle<v8::Value> obj, v8::Handle<v8::Message> msg) {
 	auto error = v8pp::convert<std::wstring>::from_v8(iso,  msg->Get());
-
 	auto stack = msg->GetStackTrace();
 	
 	std::wstring errmsg = error + L"\n" ;
@@ -98,6 +97,7 @@ void ScriptCore::RunScript() {
 				}
 			}
 		}
+		JSCore::clearAll(isolate);
 	}
 
 	// Step6. Finalized

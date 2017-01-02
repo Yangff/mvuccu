@@ -106,6 +106,75 @@ bool ResourceManager::AddFile(QString path, const QByteArray &data)
 	return true;
 }
 
+static void dfs(QString fullname, filenode* node, std::function<void(QString, bool)> func) {
+	if (node) {
+		if (node->m_flags == 2) {
+			// dir
+			func(fullname, true);
+			foreach(auto x, node->m_children) {
+				dfs(fullname + "/" + x->m_name, x, func);
+			}
+			foreach(auto x, QDir(fullname).entryInfoList(QDir::AllEntries)) {
+				if (x.isFile() || x.isDir()) {
+					if (!node->m_children.contains(x.fileName())) {
+						dfs(fullname + "/" + x.fileName(), nullptr, func);
+					}
+				}
+			}
+		}
+		else {
+			if (node->m_flags == 0) {
+				func(fullname, false);
+			}
+		}
+	} else {
+		if (QFileInfo(fullname).isDir()) {
+			func(fullname, true);
+			foreach(auto x, QDir(fullname).entryInfoList(QDir::AllEntries)) {
+				if (x.isFile() || x.isDir()) {
+					dfs(fullname + "/" + x.fileName(), nullptr, func);
+				}
+			}
+		} else {
+			if (QFileInfo(fullname).isFile()) {
+				func(fullname, false);
+			}
+		}
+	}
+}
+
+void ResourceManager::Each(QString path, std::function<void(QString, bool)> func)
+{
+	path = ":" + QDir::cleanPath(path.right(path.length() - 1));
+
+	if (!m_root)
+		m_root = new filenode();
+
+	auto current = m_root;
+	const QStringList nodes = path.split(QLatin1Char('/'));
+	QString currentPath = ":";
+	bool realExists = QFileInfo::exists(path);
+	for (int i = 1; i < nodes.size(); ++i) {
+		auto node = nodes.at(i);
+		if (node.isEmpty())
+			continue;
+
+		if (!current->m_children.contains(node)) {
+			current = nullptr;
+
+			break;
+		}
+
+		else {
+			current = current->m_children[node];
+			currentPath = currentPath + "/" + node;
+		}
+	}
+	if (!realExists && current == nullptr)
+		return;
+	dfs(currentPath, current, func);
+}
+
 
 filenode * ResourceManager::GetFileInfo(QString path)
 {

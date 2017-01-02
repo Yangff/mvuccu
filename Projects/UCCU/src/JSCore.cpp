@@ -1,6 +1,11 @@
+#define V8PP_ISOLATE_DATA_SLOT 0
 #include <v8pp/module.hpp>
 #include <v8pp/utility.hpp>
 #include <v8pp/convert.hpp>
+#include <v8pp/object.hpp>
+#include <v8pp/call_v8.hpp>
+#include <v8pp/class.hpp>
+
 #include <v8.h>
 
 #include <QtCore/qfileinfo>
@@ -12,25 +17,67 @@
 
 namespace console {
 	v8::UniquePersistent<v8::Value> _console;
+
+	QString apply(QString x, v8::Handle<v8::Value> o) {
+		auto iso = v8::Isolate::GetCurrent();
+		QString current = x;
+		if (o->IsString()) {
+			return current.arg(*v8::String::Utf8Value(o));
+		}
+		if (o->IsInt32()) {
+			return current.arg(v8pp::from_v8<int>(iso, o));
+		}
+		if (o->IsUint32()) {
+			return current.arg(v8pp::from_v8<unsigned int>(iso, o));
+		}
+		if (o->IsNumber()) {
+			return current.arg(v8pp::from_v8<double>(iso, o));
+		}
+		if (o->IsUndefined()) {
+			return current.arg("undefined");
+		}
+		if (o->IsNull()) {
+			return current.arg("null");
+		}
+		if (o->IsBoolean()) {
+			return current.arg(v8pp::from_v8<bool>(iso, o));
+		}
+		if (o->IsObject()) {
+			return current.arg(*v8::String::Utf8Value(o->ToString()));
+		}
+		return current.arg("?");
+	}
+
+	QString applyFormat(QString format, v8::FunctionCallbackInfo<v8::Value> const& args) {
+		QString current(format);
+		for (int i = 1; i < args.Length(); i++) {
+			auto o = args[i];
+			current = apply(current, o);
+		}
+		return current;
+	}
+
 	void log(v8::FunctionCallbackInfo<v8::Value> const& args) {
 		v8::HandleScope handle_scope(args.GetIsolate());
-		for (int i = 0; i < args.Length(); i++) {
-			if (i > 0) LogManager::instance().log(" ");
-			v8::String::Utf8Value str(args[i]);
-			LogManager::instance().log(*str);
+		if (args.Length() == 0) {
+			v8pp::throw_ex(v8::Isolate::GetCurrent() ,"console.log takes at least one argument");
+			return;
 		}
-		LogManager::instance().log("\n");
+		v8::String::Utf8Value _format(args[0]);
+		QString result = applyFormat(*_format, args);
+		LogManager::instance().log(result);
 		args.GetReturnValue().SetNull();
 	}
 
 	void err(v8::FunctionCallbackInfo<v8::Value> const& args) {
 		v8::HandleScope handle_scope(args.GetIsolate());
-		for (int i = 0; i < args.Length(); i++) {
-			if (i > 0) LogManager::instance().err(" ");
-			v8::String::Utf8Value str(args[i]);
-			LogManager::instance().err(*str);
+		if (args.Length() == 0) {
+			v8pp::throw_ex(v8::Isolate::GetCurrent(), "console.log takes at least one argument");
+			return;
 		}
-		LogManager::instance().err("\n");
+		v8::String::Utf8Value _format(args[0]);
+		QString result = applyFormat(*_format, args);
+		LogManager::instance().err(result);
 		args.GetReturnValue().SetNull();
 	}
 
@@ -43,9 +90,119 @@ namespace console {
 		iso->GetCurrentContext()->Global()->Set(v8::String::NewFromUtf8(iso, "console"), c);
 	}
 
+	void clear() {
+		_console.Reset();
+	}
+
 	v8::Handle<v8::Value> console(v8::Isolate *iso) {
 		return v8pp::to_local(iso, _console);
 	}
+};
+
+namespace buffer {
+	class buffer {
+	public:
+		QByteArray _buff;
+
+		void SetBuff(QByteArray buff) {
+			_buff = buff;
+		}
+	public:
+		v8::Handle<v8::Value> ToString() {
+			auto iso = v8::Isolate::GetCurrent();
+			v8::EscapableHandleScope handle_scope(iso);
+			v8::TryCatch try_catch;
+
+			auto maybe = v8::String::NewFromOneByte(iso, (uint8_t*)_buff.data(), v8::NewStringType::kNormal, _buff.length());
+			if (maybe.IsEmpty() || try_catch.HasCaught())
+				return handle_scope.Escape(try_catch.ReThrow());;
+			v8::Handle<v8::String> s = maybe.ToLocalChecked();
+			return handle_scope.Escape(s);
+		}
+
+		explicit buffer(int len) {
+			_buff.resize(len);
+		}
+
+		int GetLength() const {
+			return _buff.length();
+		}
+
+		v8::Handle<v8::Value> clone() {
+			return buffer::New(_buff);
+		}
+
+		void resize(int sz) {
+			_buff.resize(sz);
+		}
+
+		void reserve(int sz) {
+			_buff.reserve(sz);
+		}
+
+		buffer() { }
+	public:
+		static v8::Handle<v8::Value> New(QByteArray buff) {
+			buffer *n = new buffer();
+			n->SetBuff(buff);
+			return v8pp::class_<buffer>::import_external(v8::Isolate::GetCurrent(), n);
+		}
+	};
+
+	v8::Handle<v8::Function> init(v8::Isolate *iso) {
+		v8pp::class_<buffer> cbuffer(iso);
+		cbuffer.ctor<int>()
+				.set("ToString", &buffer::ToString)
+				.set("length", v8pp::property(&buffer::GetLength))
+				.set("clone", &buffer::clone)
+				.set("reserve", &buffer::reserve)
+				.set("resize", &buffer::resize);
+		cbuffer.class_function_template()->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+			[](uint32_t index, v8::PropertyCallbackInfo<v8::Value> const& info) {
+				auto klass = v8pp::from_v8<buffer&>(info.GetIsolate(), info.This());
+				if (index >= (unsigned int)klass._buff.length()) {
+					info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer out of range"));
+				}
+				else
+					info.GetReturnValue().Set(v8pp::to_v8<int>(info.GetIsolate(), (int)klass._buff.at(index)));
+			},
+			[] (uint32_t index,
+				v8::Local<v8::Value> value,
+				const v8::PropertyCallbackInfo<v8::Value>& info) {
+					auto& klass = v8pp::from_v8<buffer&>(info.GetIsolate(), info.This());
+					if (value.IsEmpty()) {
+						info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer accept only bytes"));
+						return;
+					}
+					if (!(value->IsInt32()) && !(value->IsUint32()) && !(value->IsString())) {
+						info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer accept only bytes"));
+						return;
+					}
+					if (((value->IsInt32()) || (value->IsUint32())) && !((value->Int32Value()) <= 255 && (value->Int32Value()) >= 0)) {
+						info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer accept only bytes"));
+						return;
+					}
+					if ((value->IsString()) && ((value.As<v8::String>()->Length()) != 1)) {
+						info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer accept only bytes"));
+						return;
+					}
+					if (index >= (unsigned int)klass._buff.length()) {
+						info.GetReturnValue().Set(v8pp::throw_ex(info.GetIsolate(), "Buffer out of range"));
+					}
+					else {
+						if (value->IsString()) {
+							klass._buff[index] = (*v8::String::Utf8Value(value.As<v8::String>()))[0];
+						} else {
+							klass._buff[index] = value->Int32Value();
+						}
+						info.GetReturnValue().Set(value);
+					}
+			}
+		));
+		cbuffer.class_function_template()->SetClassName(v8pp::to_v8(iso, "Buffer"));
+		return cbuffer.js_function_template()->GetFunction();
+	}
+
 };
 
 #include <QtCore/qmap.h>
@@ -55,8 +212,6 @@ namespace console {
 #include <QtCore/qjsondocument.h>
 #include <QtCore/qjsonobject.h>
 
-#include <v8pp/call_v8.hpp>
-#include <v8pp/class.hpp>
 
 namespace fs {
 	const int F_OK = 1;
@@ -128,11 +283,37 @@ namespace fs {
 		return v8::Null(isolate);
 	}
 
+	v8::Handle<v8::Value> readFileBufferSync(const char * file) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		QFile f(file);
+		if (f.exists() && f.open(QIODevice::ReadOnly)) {
+			auto d = f.readAll();
+			f.close();
+			return buffer::buffer::New(d);
+		}
+		return v8::Null(isolate);
+	}
+
 	uint64_t writeFileSync(const char * file, const char *data) {
 		v8::Isolate* isolate = v8::Isolate::GetCurrent();
 		QFile f(file);
 		if (f.open(QIODevice::WriteOnly)) {
 			uint64_t  l = f.write(data);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	uint64_t writeFileBufferSync(const char * file, buffer::buffer* data) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		if (data->_buff.isNull()) {
+			v8pp::throw_ex(isolate, "Bad buffer");
+			return 0;
+		}
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly)) {
+			uint64_t  l = f.write(data->_buff);
 			f.close();
 			return l;
 		}
@@ -155,6 +336,21 @@ namespace fs {
 		QFile f(file);
 		if (f.open(QIODevice::WriteOnly | QIODevice::Append)) {
 			uint64_t  l = f.write(data);
+			f.close();
+			return l;
+		}
+		return 0;
+	}
+
+	uint64_t appendFileBufferSync(const char * file, buffer::buffer* data) {
+		v8::Isolate* isolate = v8::Isolate::GetCurrent();
+		if (data->_buff.isNull()) {
+			v8pp::throw_ex(isolate, "Bad buffer");
+			return 0;
+		}
+		QFile f(file);
+		if (f.open(QIODevice::WriteOnly | QIODevice::Append)) {
+			uint64_t  l = f.write(data->_buff);
 			f.close();
 			return l;
 		}
@@ -232,9 +428,12 @@ namespace fs {
 		m.set("accessSync", &accessSync);
 		m.set("readFileSync", &readFileSync);
 		m.set("writeFileSync", &writeFileSync);
+		m.set("readFileBufferSync", &readFileBufferSync);
+		m.set("writeFileBufferSync", &writeFileBufferSync);
 		m.set("writeFileLenSync", &writeFileLenSync);
-		m.set("appendFileSync", &writeFileSync);
-		m.set("appendFileLenSync", &writeFileLenSync);
+		m.set("appendFileSync", &appendFileSync);
+		m.set("appendFileBufferSync", &appendFileBufferSync);
+		m.set("appendFileLenSync", &appendFileLenSync);
 		m.set("realpathSync", &realpathSync);
 		m.set("renameSync", &renameSync);
 		m.set("rmdirSync", &rmdirSync);
@@ -279,6 +478,7 @@ namespace process {
 
 	v8::Persistent<v8::ObjectTemplate, v8::CopyablePersistentTraits<v8::ObjectTemplate>> environment;
 
+
 	void exit(int code = 0) {
 		::exit(code);
 	}
@@ -288,6 +488,12 @@ namespace process {
 	}
 
 	v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>> _process;
+
+	void clear() {
+		environment.Reset();
+		_process.Reset();
+	}
+
 	void init(v8::Isolate *iso) {
 		v8pp::module m(iso);
 
@@ -460,6 +666,11 @@ namespace native_module {
 	v8::Persistent<v8::Array, v8::CopyablePersistentTraits<v8::Array>> wrapper;
 	QMap<QString, v8::Persistent<v8::Value, v8::CopyablePersistentTraits<v8::Value>>> modules;
 
+	void clear() {
+		modules.clear();
+		wrapper.Reset();
+	}
+
 	void addmodule(const char * name, v8::Handle<v8::Value> obj) {
 		modules[name].Reset(v8::Isolate::GetCurrent(), v8::Persistent<v8::Object>(v8::Isolate::GetCurrent(), obj.As<v8::Object>()));
 	}
@@ -564,22 +775,41 @@ namespace native_module {
 
 namespace ModAPI {
 	using namespace Qml;
-	
-	v8::Handle<v8::String> get(const char *file) {
+	using ::buffer::buffer;
+
+	v8::Handle<v8::Value> get(const char *file) {
 		auto iso = v8::Isolate::GetCurrent();
 		QByteArray content = ResourceManager::instance().GetFileContent(":/qml/" + QString(file));
-		v8::Handle<v8::String> s = v8::String::NewFromOneByte(iso, (uint8_t*)content.data(), v8::NewStringType::kNormal, content.length()).ToLocalChecked();
-		return s;
+		//v8::Handle<v8::String> s = v8::String::NewFromOneByte(iso, (uint8_t*)content.data(), v8::NewStringType::kNormal, content.length()).ToLocalChecked();
+		//return s;
+		return buffer::New(content);
 	}
-	bool update(const char *file, v8::Handle<v8::String> context) {
-		v8::String::Utf8Value d(context);
-		return ResourceManager::instance().UpdateFileContent(":/qml/" + QString(file), *d);
+	bool update(const char *file, buffer* context) {
+		//v8::String::Utf8Value d(context);
+		if (context->_buff == nullptr) {
+			v8pp::throw_ex(v8::Isolate::GetCurrent(), "Internal Buffer is not completed.");
+			return false;
+		}
+		return ResourceManager::instance().UpdateFileContent(":/qml/" + QString(file), context->_buff);
 	}
-	bool add(const char *file, v8::Handle<v8::String> context) {
-		v8::String::Utf8Value d(context);
-		return ResourceManager::instance().AddFile(":/qml/" + QString(file), *d);
+	bool add(const char *file, buffer* context) {
+		//v8::String::Utf8Value d(context);
+		if (context->_buff == nullptr) {
+			v8pp::throw_ex(v8::Isolate::GetCurrent(), "Internal Buffer is not completed.");
+			return false;
+		}
+		return ResourceManager::instance().AddFile(":/qml/" + QString(file), context->_buff);
 	}
-
+	void each(const char * path, v8::Handle<v8::Function> callback) {
+		ResourceManager::instance().Each(":/qml/" + QString(path), [callback] (QString path, bool isDir) {
+			auto iso = v8::Isolate::GetCurrent();
+			if (path.startsWith(":/qml/")) {
+				auto _path = path.right(path.length() - 6);
+				if (_path.length() != 0)
+					v8pp::call_v8(iso, callback, iso->GetCurrentContext()->Global(), (const char*)_path.toUtf8().data(), !!isDir);
+			}
+		});
+	}
 
 	class qmlref {
 	private:
@@ -596,16 +826,8 @@ namespace ModAPI {
 	private:
 		void create(QString typeId) { m_pNode = QSharedPointer<Qml::QmlNode>(new QmlNode(typeId)); };
 	public:
-		explicit qmlnode(v8::FunctionCallbackInfo<v8::Value> const& x):m_pNode() {
-			if (x.Length() == 0) {
-				return;
-			} else if (x.Length() == 1) {
-				auto s = x[0].As<v8::String>();
-				if (s.IsEmpty())
-					return;
-				v8::String::Utf8Value v(s);
-				create(*v);
-			}
+		explicit qmlnode(const char *typeId):m_pNode() {
+			create(typeId);
 		}
 		qmlnode(QSharedPointer<QmlNode> x):m_pNode(x){};
 	public:
@@ -619,13 +841,20 @@ namespace ModAPI {
 	private:
 		QSharedPointer<Document> m_pDoc;
 	public:
-		explicit qmldocument(const char* code) {
-			QmlProcessor process(code);
+		explicit qmldocument(buffer* buffer) {
+			if (buffer->_buff == nullptr) {
+				v8pp::throw_ex(v8::Isolate::GetCurrent(), "Internal Buffer is not completed.");
+				return;
+			}
+			QmlProcessor process(buffer->_buff);
 			m_pDoc = QSharedPointer<Qml::Document>(process.GenerateDocument());
 		}
 	public:
-		static v8::Handle<v8::Value> New(const char* code) {
-			qmldocument *n = new qmldocument(code);
+		static v8::Handle<v8::Value> New(buffer* buffer) {
+			if(buffer->_buff == nullptr) {
+				return v8pp::throw_ex(v8::Isolate::GetCurrent(), "Internal Buffer is not completed.");
+			}
+			qmldocument *n = new qmldocument(buffer);
 			return v8pp::class_<qmldocument>::import_external(v8::Isolate::GetCurrent(), n);
 		}
 	public:
@@ -635,17 +864,24 @@ namespace ModAPI {
 	};
 
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
+		
 		v8pp::class_<qmldocument> cdoc(iso);
 		v8pp::class_<qmlnode> cnode(iso);
 		v8pp::class_<qmlref> cref(iso);
-		
-		cdoc.ctor<const char*>()
-			.set("imports", v8pp::property(&qmldocument::get_root));
+
+		cdoc.ctor<buffer*>()
+			.set("node", v8pp::property(&qmldocument::get_root));
+		cnode.ctor<const char*>();
 
 		v8pp::module m(iso);
 		m.set_const("api", "1.0.0");
 		m.set("QMLDocument", cdoc);
 		m.set("QMLNode", cnode);
+
+		m.set("get", &get);
+		m.set("update", &update);
+		m.set("add", &add);
+		m.set("each", &each);
 
 		return m.new_instance();
 	}
@@ -656,6 +892,8 @@ void JSCore::initAll(v8::Isolate * iso) {
 	v8::TryCatch try_catch;
 	//global::init(iso);
 	console::init(iso);
+	
+
 	if (try_catch.HasCaught()) {
 		try_catch.ReThrow();
 		return;
@@ -673,6 +911,7 @@ void JSCore::initAll(v8::Isolate * iso) {
 
 	native_module::addmodule("native_module", nm);
 	native_module::addmodule("fs", fs::init(iso));
+	native_module::addmodule("buffer", buffer::init(iso));
 	native_module::addmodule("vm", vm::init(iso));
 	native_module::addmodule("modapi", ModAPI::init(iso));
 
@@ -708,4 +947,12 @@ v8::Handle<v8::Value> JSCore::require(const char * module) {
 
 v8::Handle<v8::Value> JSCore::load(const char * name, const char * path) {
 	return native_module::load(name, path);
+}
+
+void JSCore::clearAll(v8::Isolate*iso)
+{
+	native_module::clear();
+	console::clear();
+	process::clear();
+	v8pp::cleanup(iso);
 }
