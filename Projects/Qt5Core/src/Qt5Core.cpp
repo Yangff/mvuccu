@@ -1,6 +1,8 @@
 #include <QtCore/qcoreapplication.h>
 #include <QtCore/qstring>
 #include <QtCore/qtranslator.h>
+#include <QtCore/qcoreapplication.h>
+
 #include <IQt5Wrapper.h>
 
 #include "Qt5Core.h"
@@ -21,4 +23,10 @@ bool qRegisterResourceData(
 	const unsigned char *data
 	) {
 	return wrapper->RegisterHooked(version, tree, name, data);
+}
+
+void QCoreApplication::setOrganizationDomain(const QString & domain) {
+	wrapper->AddrSetOrganizationDomain(domain);
+	if (wrapper->AfterSetOrganizationDomainHooked) 
+		wrapper->AfterSetOrganizationDomainHooked();
 }

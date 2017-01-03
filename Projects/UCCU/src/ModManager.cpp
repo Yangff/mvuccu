@@ -9,7 +9,7 @@ bool ModManager::WaitingForRes() {
 }
 
 unsigned char * ModManager::RunMods() {
-	m_bWaitingForRes = false;
+	// m_bWaitingForRes = false;
 	ResourceManager::instance().AddFile(":/mod/version", QByteArray("2001", 4));
 
 	// run mods
@@ -51,6 +51,11 @@ QMap<QString, Mod> ModManager::LoadMods()
 Version ModManager::UCCUVersion()
 {
 	return Version(1,0,0);
+}
+
+void ModManager::MarkFound()
+{
+	m_bWaitingForRes = false;
 }
 
 ModManager::ModManager() {

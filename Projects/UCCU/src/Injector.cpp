@@ -21,6 +21,29 @@ QMap<QString, int> *categoryEnabler;
 //QSet<QObject*> *objects;
 bool bQappTriggered;
 
+struct fingerprint {
+	bool v;
+	int version;
+	const unsigned char *tree;
+	const unsigned char *name;
+	const unsigned char *data;
+} fp;
+
+bool QApplicationReady() {
+	if (fp.v) {
+		if (unsigned char * new_data = ModManager::instance().RunMods()) {
+			Injector::instance().Wrapper->Call_qUnregisterResourceData(fp.version, fp.tree, fp.name, fp.data);
+			if (!QResource::registerResource(new_data)) {
+				LogManager::instance().log("Failed to modify resource");
+			}
+			return Injector::instance().Wrapper->Call_qRegisterResourceData(fp.version, fp.tree, fp.name, fp.data);
+		} else {
+			LogManager::instance().err("Cannot Load Mods");
+		}
+	}
+	return false;
+}
+
 bool wrap_qRegisterResourceData(
 	int version,
 	const unsigned char *tree,
@@ -29,6 +52,9 @@ bool wrap_qRegisterResourceData(
 	) {
 	bool succ = Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
 	if (succ && QDir(":/qml").exists() && ModManager::instance().WaitingForRes()) {
+		ModManager::instance().MarkFound();
+		fp.v = true; fp.version = version; fp.tree = tree; fp.name = name; fp.data = data;
+		/*
 		if (unsigned char * new_data = ModManager::instance().RunMods()) {
 			Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
 			if (!QResource::registerResource(new_data)) {
@@ -38,6 +64,7 @@ bool wrap_qRegisterResourceData(
 		} else {
 			LogManager::instance().err("Cannot Load Mods");
 		}
+		*/
 	}
 	return succ;
 }
@@ -93,6 +120,7 @@ bool Injector::Init(IQt5Wrapper* wrapper) {
 	wrapper->Set_qRegisterResourceData(wrap_qRegisterResourceData);
 	auto addr = &WrappedLoad::load;
 	wrapper->Set_QTranslator_load(*reinterpret_cast<p_QTranslator_load*>(&addr)); // mdzz
+	wrapper->Set_AfterQCoreApplication_setOrganizationDomain((p_Callback)QApplicationReady);
 	Wrapper = wrapper;
 
 	// step2. init

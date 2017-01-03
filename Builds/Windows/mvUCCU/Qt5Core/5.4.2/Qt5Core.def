@@ -5523,7 +5523,7 @@ EXPORTS
 ?setObjectName@QObject@@QAEXABVQString@@@Z=Qt5CoreOLD.?setObjectName@QObject@@QAEXABVQString@@@Z @5522
 ?setOffsetFromUtc@QDateTime@@QAEXH@Z=Qt5CoreOLD.?setOffsetFromUtc@QDateTime@@QAEXH@Z @5523
 ?setOpenMode@QIODevice@@IAEXV?$QFlags@W4OpenModeFlag@QIODevice@@@@@Z=Qt5CoreOLD.?setOpenMode@QIODevice@@IAEXV?$QFlags@W4OpenModeFlag@QIODevice@@@@@Z @5524
-?setOrganizationDomain@QCoreApplication@@SAXABVQString@@@Z=Qt5CoreOLD.?setOrganizationDomain@QCoreApplication@@SAXABVQString@@@Z @5525
+?setOrganizationDomain@QCoreApplication@@SAXABVQString@@@Z @5525
 ?setOrganizationName@QCoreApplication@@SAXABVQString@@@Z=Qt5CoreOLD.?setOrganizationName@QCoreApplication@@SAXABVQString@@@Z @5526
 ?setOvershoot@QEasingCurve@@QAEXN@Z=Qt5CoreOLD.?setOvershoot@QEasingCurve@@QAEXN@Z @5527
 ?setP1@QLine@@QAEXABVQPoint@@@Z=Qt5CoreOLD.?setP1@QLine@@QAEXABVQPoint@@@Z @5528

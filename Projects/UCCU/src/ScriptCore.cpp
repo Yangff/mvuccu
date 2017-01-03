@@ -59,6 +59,8 @@ std::wstring GetErrorMessage(v8::Isolate*iso, v8::Handle<v8::Value> obj, v8::Han
 	return errmsg;
 }
 
+// TODO: Move this function to another thread and communite by Qt slot signal.
+
 void ScriptCore::RunScript() {
 	LogManager::instance().log("Start mod envoronment");
 	// Step1. Init Js Cxt

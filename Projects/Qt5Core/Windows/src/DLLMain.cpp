@@ -37,8 +37,9 @@ BOOL WINAPI DllMain(
 			auto o_QTranslator_load = (p_QTranslator_load)GetProcAddress(hQt5Core, "?load@QTranslator@@QAE_NABVQString@@000@Z");
 			auto o_qRegisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qRegisterResourceData@@YA_NHPBE00@Z");
 			auto o_qUnregisterResourceData = (p_qRegisterResourceData)GetProcAddress(hQt5Core, "?qUnregisterResourceData@@YA_NHPBE00@Z");
+			auto o_QCoreApplication_setOrganizationDomain = (p_QCoreApplication_setOrganizationDomain)GetProcAddress(hQt5Core, "?setOrganizationDomain@QCoreApplication@@SAXABVQString@@@Z");
 
-			wrapper = new CQt5WrapperV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData);
+			wrapper = new CQt5WrapperV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData, o_QCoreApplication_setOrganizationDomain);
 
 			if (!match) {
 				SetDllDirectory(L".\\mvuccu");

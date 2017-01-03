@@ -238,3 +238,4 @@ Build-results
 *.db
 
 !/Binary/*
+!/Binary/*

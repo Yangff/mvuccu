@@ -26,4 +26,5 @@ public:
 	unsigned char* RunMods();
 	QMap<QString, Mod> LoadMods();
 	Version UCCUVersion();
+	void MarkFound();
 };

@@ -11,6 +11,10 @@ typedef bool(__thiscall *p_QTranslator_load)(
 	const QString & suffix
 	);
 
+typedef bool(*p_QCoreApplication_setOrganizationDomain)(
+	const QString & domain
+	);
+
 typedef bool(*p_qRegisterResourceData)(
 	int version,
 	const unsigned char *tree,
@@ -18,12 +22,16 @@ typedef bool(*p_qRegisterResourceData)(
 	const unsigned char *data
 	);
 
+typedef bool(__thiscall *p_Callback)();
+
 
 class IQt5Wrapper {
 public:
 	virtual void Set_QTranslator_load(p_QTranslator_load) = NULL;
 
 	virtual void Set_qRegisterResourceData(p_qRegisterResourceData) = NULL;
+
+	virtual void Set_AfterQCoreApplication_setOrganizationDomain(p_Callback) = NULL;
 
 	virtual bool Call_QTranslator_load(void const *thus, const QString & filename,
 		const QString & directory,
