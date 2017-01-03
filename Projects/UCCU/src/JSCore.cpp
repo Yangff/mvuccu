@@ -147,6 +147,12 @@ namespace buffer {
 			n->SetBuff(buff);
 			return v8pp::class_<buffer>::import_external(v8::Isolate::GetCurrent(), n);
 		}
+
+		static v8::Handle<v8::Value> fromString(const char* str) {
+			buffer *n = new buffer();
+			n->SetBuff(QByteArray(str));
+			return v8pp::class_<buffer>::import_external(v8::Isolate::GetCurrent(), n);
+		}
 	};
 
 	v8::Handle<v8::Function> init(v8::Isolate *iso) {
@@ -156,7 +162,8 @@ namespace buffer {
 				.set("length", v8pp::property(&buffer::GetLength))
 				.set("clone", &buffer::clone)
 				.set("reserve", &buffer::reserve)
-				.set("resize", &buffer::resize);
+				.set("resize", &buffer::resize)
+				.set("fromString", &buffer::fromString);
 		cbuffer.class_function_template()->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
 			[](uint32_t index, v8::PropertyCallbackInfo<v8::Value> const& info) {
 				auto klass = v8pp::from_v8<buffer&>(info.GetIsolate(), info.This());

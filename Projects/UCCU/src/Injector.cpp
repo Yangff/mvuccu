@@ -31,6 +31,7 @@ struct fingerprint {
 
 bool QApplicationReady() {
 	if (fp.v) {
+		Injector::instance().Wrapper->Call_qRegisterResourceData(fp.version, fp.tree, fp.name, fp.data);
 		if (unsigned char * new_data = ModManager::instance().RunMods()) {
 			Injector::instance().Wrapper->Call_qUnregisterResourceData(fp.version, fp.tree, fp.name, fp.data);
 			if (!QResource::registerResource(new_data)) {
@@ -54,6 +55,7 @@ bool wrap_qRegisterResourceData(
 	if (succ && QDir(":/qml").exists() && ModManager::instance().WaitingForRes()) {
 		ModManager::instance().MarkFound();
 		fp.v = true; fp.version = version; fp.tree = tree; fp.name = name; fp.data = data;
+		Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
 		/*
 		if (unsigned char * new_data = ModManager::instance().RunMods()) {
 			Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
