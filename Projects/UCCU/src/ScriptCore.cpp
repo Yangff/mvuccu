@@ -88,23 +88,25 @@ void ScriptCore::RunScript() {
 		
 		isolate->SetCaptureStackTraceForUncaughtExceptions(true);
 		v8::Isolate::Scope isolate_scope(isolate);
-		v8::HandleScope handle_scope(isolate); if (uccuConfig::instance().enableV8Debug())
-			DebugAgent::Enable("RMMV", uccuConfig::instance().GetV8DebugPort(), uccuConfig::instance().waitForConnection());
-
+		v8::HandleScope handle_scope(isolate); 
+		if (uccuConfig::instance().enableV8Debug())
+			DebugAgent::Enable("RMMV", uccuConfig::instance().GetV8DebugPort(), [](QString s) {LogManager::instance().log(s); }, uccuConfig::instance().waitForConnection());
 		auto cxt = v8::Context::New(isolate);
 		v8::Context::Scope context_scope(cxt);
 		// Step2. Init C++/JS Objects
 		v8::TryCatch try_catch;
-		JSCore::initAll(isolate);
+		JSCore::initAll(isolate); 
+		
 		if (try_catch.HasCaught()) {
 			auto error = GetErrorMessage(isolate, try_catch.Exception(), try_catch.Message());
 			LogManager::instance().err(QString::fromWCharArray(error.c_str()));
 			LogManager::instance().err("Cannot init runtime, give up");
 		} else {
 			// Step3. Excute loader, pass uccu namespace and returns $loader
+			
 			v8::Handle<v8::Function> f;
 			if (v8pp::get_option(isolate, JSCore::require("module").As<v8::Object>(), "runMain", f)) {
-
+				
 				v8pp::call_v8(isolate, f, cxt->Global());
 				if (try_catch.HasCaught() || try_catch.HasTerminated()) {
 					auto error = GetErrorMessage(isolate, try_catch.Exception(), try_catch.Message());

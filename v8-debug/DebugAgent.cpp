@@ -116,7 +116,8 @@ static std::string ReceiveMessage(Socket* conn) {
 		}
 		else {
 			// For now just print all other headers than Content-Length.
-			// LOG("%s: %s\n", key, value != nullptr ? value : "(no value)");
+			QString str("%1: %2"); str.arg(key, value != nullptr ? value : "(no value)");
+			DebugAgent::log(str);
 		}
 	}
 
@@ -181,13 +182,14 @@ static bool SendConnectMessage(Socket* conn,
 
 DebugAgent* DebugAgent::debugAgent = nullptr;
 
-void DebugAgent::Enable(const std::string& hostName, int port, bool waitForConnection) {
+void DebugAgent::Enable(const std::string& hostName, int port, std::function<void(QString)> log, bool waitForConnection) {
 	assert(debugAgent == nullptr);
 	if (debugAgent) {
 		return;
 	}
 	auto isolate = v8::Isolate::GetCurrent();
 	assert(isolate != nullptr);
+	DebugAgent::log = log;
 	debugAgent = new DebugAgent(isolate, hostName, port, waitForConnection);
 }
 
@@ -217,7 +219,7 @@ DebugAgent::DebugAgent(v8::Isolate* isolate, const std::string& hostName, int po
 	// First bind the socket to the requested port.
 	bool bound = server->bind(port);
 	if (!bound) {
-		// LOG("Failed to open socket on port %d, ", port);
+		log(QString("Failed to open socket on port %1").arg(port));
 		return;
 	}
 	v8::Debug::SetMessageHandler(isolate, DebugAgentMessageHandler);
@@ -264,6 +266,8 @@ void DebugAgent::runClientLoop() {
 			}
 		}
 		// Send the hello message.
+		if (!client)
+			continue;
 		bool ok = SendConnectMessage(client, hostName.c_str());
 		if (!ok) {
 			return;
@@ -333,3 +337,5 @@ void DebugAgent::onDebugMessage(const v8::Debug::Message& message) {
 	len = utf8_request.length();
 	client->send(*utf8_request, len);
 }
+
+std::function<void(QString)> DebugAgent::log;

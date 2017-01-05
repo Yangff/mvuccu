@@ -25,7 +25,7 @@ int parseFlagString(QString s) {
 	return result;
 }
 
-uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enableLogFile(0), enableDebug(0), v8DebugPort(5858), waitDebugger(0) {
+uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enableLogFile(0), enableDebug(0), v8DebugPort(5959), waitDebugger(0) {
 	QFile f(cfgFile);
 	if (f.open(QFileDevice::OpenModeFlag::ReadOnly)) {
 		QJsonParseError err;

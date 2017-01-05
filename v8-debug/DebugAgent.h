@@ -4,6 +4,8 @@
 #include <thread>
 #include "socket.h"
 
+#include <QtCore/qstring.h>
+
 /**
 * Debug agent which starts a socket listener on the debugger port and handles connection from a remote debugger.
 */
@@ -17,7 +19,7 @@ public:
 	* @param waitForConnection whether V8 should pause on a first statement allowing remote debugger to connect before
 	* anything interesting happened.
 	*/
-	static void Enable(const std::string& hostName, int port, bool waitForConnection = false);
+	static void Enable(const std::string& hostName, int port, std::function<void(QString)> log, bool waitForConnection = false);
 	/**
 	* Disable the V8 debug agent. The TCP/IP connection will be closed.
 	*/
@@ -44,4 +46,7 @@ private:
 	friend class DebugAgentSession;
 
 	friend void DebugAgentMessageHandler(const v8::Debug::Message& message);
+
+public:
+	static std::function<void(QString)> log;
 };
