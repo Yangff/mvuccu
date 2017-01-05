@@ -90,6 +90,10 @@
       <AdditionalDependencies>Qt5Core.lib;Qt5Qml.lib;v8.lib;ws2_32.lib;advapi32.lib;winmm.lib</AdditionalDependencies>
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>cd $(SolutionDir) &amp;&amp; simple-install.bat
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -114,6 +118,10 @@
       <AdditionalDependencies>Qt5Core.lib;Qt5Qml.lib;v8.lib;ws2_32.lib;advapi32.lib;winmm.lib</AdditionalDependencies>
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
+    <PostBuildEvent>
+      <Command>cd $(SolutionDir) &amp;&amp; simple-install.bat
+</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (vs13)|Win32'">
     <ClCompile>
@@ -160,6 +168,8 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\DLLMain.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformEnv.cpp" />
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformLogger.cpp" />
+    <ClCompile Include="..\..\..\..\v8-debug\DebugAgent.cpp" />
+    <ClCompile Include="..\..\..\..\v8-debug\Socket-Windows.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h" />
@@ -174,6 +184,8 @@
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\ScriptCore.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\uccuConfig.h" />
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Mod.h" />
+    <ClInclude Include="..\..\..\..\v8-debug\DebugAgent.h" />
+    <ClInclude Include="..\..\..\..\v8-debug\socket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

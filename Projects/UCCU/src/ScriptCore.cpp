@@ -3,6 +3,7 @@
 #include "LogManager.h"
 #include "ModManager.h"
 #include "JSCore.h"
+#include "../../../v8-debug/DebugAgent.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,8 @@ std::wstring GetErrorMessage(v8::Isolate*iso, v8::Handle<v8::Value> obj, v8::Han
 			auto line = std::to_wstring(frame->GetLineNumber());
 			auto col = std::to_wstring(frame->GetColumn());
 			auto func = v8pp::convert<std::wstring>::from_v8(iso, frame->GetFunctionName());
+			if (func == L"")
+				func = L"anonymous";
 			errmsg += L"\t at <" + func + L">" + line + L":" + col + L" from " + name + L"\n";
 		}
 	} else {
@@ -60,6 +63,7 @@ std::wstring GetErrorMessage(v8::Isolate*iso, v8::Handle<v8::Value> obj, v8::Han
 }
 
 // TODO: Move this function to another thread and communite by Qt slot signal.
+// TODO: Move v8 platform to ... wherever.. 
 
 void ScriptCore::RunScript() {
 	LogManager::instance().log("Start mod envoronment");
@@ -69,15 +73,24 @@ void ScriptCore::RunScript() {
 	// v8::V8::InitializeExternalStartupData(cpath);
 	v8::V8::InitializePlatform(0);
 	v8::V8::Initialize();
-	// v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+	auto flags = uccuConfig::instance().GetV8Flags();
+	int argc = flags.length() + 1;
+	char ** argv = new char*[argc];
+	argv[0] = "RPGMV.exe";
+	for (int i = 1; i < argc; i++)
+		argv[i] = flags[i].data();
+	v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 	ArrayBufferAllocator array_buffer_allocator;
 	v8::Isolate::CreateParams create_params;
 	create_params.array_buffer_allocator = &array_buffer_allocator;
 	v8::Isolate* isolate = v8::Isolate::New(create_params);
 	{
+		
 		isolate->SetCaptureStackTraceForUncaughtExceptions(true);
 		v8::Isolate::Scope isolate_scope(isolate);
-		v8::HandleScope handle_scope(isolate);
+		v8::HandleScope handle_scope(isolate); if (uccuConfig::instance().enableV8Debug())
+			DebugAgent::Enable("RMMV", uccuConfig::instance().GetV8DebugPort(), uccuConfig::instance().waitForConnection());
+
 		auto cxt = v8::Context::New(isolate);
 		v8::Context::Scope context_scope(cxt);
 		// Step2. Init C++/JS Objects
@@ -99,6 +112,8 @@ void ScriptCore::RunScript() {
 				}
 			}
 		}
+		if (uccuConfig::instance().enableV8Debug())
+			DebugAgent::Disable();
 		JSCore::clearAll(isolate);
 	}
 

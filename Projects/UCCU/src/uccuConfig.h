@@ -21,10 +21,20 @@ public:
 	bool enableConsoleWindow();
 	bool enableLog();
 	int GetCategoryMode(QString);
+	QList<QByteArray> GetV8Flags();
+
+	bool enableV8Debug();
+	int GetV8DebugPort();
+	bool waitForConnection();
 private:
 	QMap<QString, int> categoryMode;
 	QString langFile;
 	bool enableLang;
 	bool enableLogFile;
 	bool enableConsole;
+	QList<QByteArray> v8Flags;
+
+	bool enableDebug;
+	int v8DebugPort;
+	bool waitDebugger;
 };

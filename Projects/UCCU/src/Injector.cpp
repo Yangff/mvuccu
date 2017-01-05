@@ -87,6 +87,7 @@ static void objectRemoveHook(QObject* o) {
 	objects->remove(o);
 }
 */
+
 class WrappedLoad {
 public:
 	bool load(const QString & filename,

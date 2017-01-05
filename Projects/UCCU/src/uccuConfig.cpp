@@ -4,6 +4,7 @@
 #include <QtCore/qjsondocument.h>
 #include <QtCore/qjsonobject.h>
 #include <QtCore/qvariant.h>
+#include <QtCore/qjsonarray.h>
 
 int parseFlagString(QString s) {
 	int result = 0;
@@ -24,11 +25,7 @@ int parseFlagString(QString s) {
 	return result;
 }
 
-uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enableLogFile(0) {
-	// strange bug
-	// vs said it's esp changed.
-	// wired...
-
+uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enableLogFile(0), enableDebug(0), v8DebugPort(5858), waitDebugger(0) {
 	QFile f(cfgFile);
 	if (f.open(QFileDevice::OpenModeFlag::ReadOnly)) {
 		QJsonParseError err;
@@ -50,6 +47,32 @@ uccuConfig::uccuConfig(QString cfgFile) :enableLang(0), enableConsole(0), enable
 						categoryMode[x] = parseFlagString(cate[x].toString());
 				}
 			}
+			if (obj["v8"].isObject()) {
+				auto v8 = obj["v8"].toObject();
+				if (v8["flags"].isArray()) {
+					v8Flags.clear();
+					auto ary = v8["flags"].toArray();
+					for (auto x : ary) {
+						if (x.isString())
+							v8Flags.append(x.toString().toUtf8());
+					}
+				}
+				enableDebug = false;
+				if (v8["debugger"].isObject()) {
+					auto debugger = v8["debugger"].toObject();
+					if (debugger["enable"].isBool()) {
+						enableDebug = debugger["enable"].toBool();
+					}
+					if (debugger["port"].toInt() != 0) {
+						int port = debugger["port"].toInt();
+						if (port > 0 && port < 65536)
+							v8DebugPort = port;
+					}
+					if (debugger["waitForConnection"].isBool())
+						waitDebugger = debugger["waitForConnection"].toBool();
+				}
+			}
+			
 		}
 		else goto err;
 	}
@@ -60,6 +83,8 @@ err:
 	enableLang = 0;
 	enableConsole = 0;
 	enableLogFile = 0;
+	enableDebug = 0;
+	v8DebugPort = 5858;
 	categoryMode.clear();
 }
 
@@ -87,5 +112,26 @@ int uccuConfig::GetCategoryMode(QString s)
 {
 	return categoryMode[s];
 }
+
+QList<QByteArray> uccuConfig::GetV8Flags()
+{
+	return v8Flags;
+}
+
+bool uccuConfig::enableV8Debug()
+{
+	return enableDebug;
+}
+
+int uccuConfig::GetV8DebugPort()
+{
+	return v8DebugPort;
+}
+
+bool uccuConfig::waitForConnection()
+{
+	return waitDebugger;
+}
+
 
 uccuConfig *uccuConfig::_instance = 0;

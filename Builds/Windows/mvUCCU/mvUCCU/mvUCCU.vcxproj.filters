@@ -63,6 +63,12 @@
     <ClCompile Include="..\..\..\..\Projects\UCCU\Windows\src\PlatformEnv.cpp">
       <Filter>Source Files\Platformrealted</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\v8-debug\Socket-Windows.cpp">
+      <Filter>Source Files\Platformrealted</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\v8-debug\DebugAgent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\Injector.h">
@@ -99,6 +105,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\Projects\UCCU\src\PlatformEnv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\v8-debug\DebugAgent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\v8-debug\socket.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

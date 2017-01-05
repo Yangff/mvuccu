@@ -463,7 +463,6 @@ namespace fs {
 	}
 };
 
-
 #include <QtCore/QProcessEnvironment>
 
 namespace process {
@@ -501,6 +500,10 @@ namespace process {
 		_process.Reset();
 	}
 
+	void dlopen() {
+
+	}
+
 	void init(v8::Isolate *iso) {
 		v8pp::module m(iso);
 
@@ -529,6 +532,7 @@ namespace process {
 		delete[] _path;
 		m.set_const("pid", (unsigned int)GetPid());
 		m.set_const("version", "1.0.0");
+		
 
 		m.set("exit", &exit);
 
