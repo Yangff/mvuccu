@@ -68,7 +68,7 @@ std::wstring GetErrorMessage(v8::Isolate*iso, v8::Handle<v8::Value> obj, v8::Han
 void ScriptCore::RunScript() {
 	LogManager::instance().log("Start mod envoronment");
 	// Step1. Init Js Cxt
-
+	
 	v8::V8::InitializeICU();
 	// v8::V8::InitializeExternalStartupData(cpath);
 	v8::V8::InitializePlatform(0);
@@ -76,7 +76,7 @@ void ScriptCore::RunScript() {
 	auto flags = uccuConfig::instance().GetV8Flags();
 	int argc = flags.length() + 1;
 	char ** argv = new char*[argc];
-	argv[0] = "RPGMV.exe";
+	argv[0] = "RPGMV";
 	for (int i = 1; i < argc; i++)
 		argv[i] = flags[i].data();
 	v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
@@ -106,7 +106,8 @@ void ScriptCore::RunScript() {
 			
 			v8::Handle<v8::Function> f;
 			if (v8pp::get_option(isolate, JSCore::require("module").As<v8::Object>(), "runMain", f)) {
-				
+				if (uccuConfig::instance().waitForConnection() && uccuConfig::instance().enableV8Debug())
+					v8::Debug::DebugBreak(isolate);
 				v8pp::call_v8(isolate, f, cxt->Global());
 				if (try_catch.HasCaught() || try_catch.HasTerminated()) {
 					auto error = GetErrorMessage(isolate, try_catch.Exception(), try_catch.Message());
@@ -123,6 +124,7 @@ void ScriptCore::RunScript() {
 	isolate->Dispose();
 	v8::V8::Dispose();
 	v8::V8::ShutdownPlatform();
+	delete[] argv;
 	LogManager::instance().log("Mod run over");
 }
 

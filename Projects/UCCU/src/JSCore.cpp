@@ -12,8 +12,11 @@
 
 #include "LogManager.h"
 #include "JSCore.h"
+#include "uccuConfig.h"
 
 #include "PlatformEnv.h"
+
+#include <v8-debug.h>
 
 namespace console {
 	v8::UniquePersistent<v8::Value> _console;
@@ -99,6 +102,18 @@ namespace console {
 	}
 };
 
+namespace debug {
+	void _break() {
+		if (uccuConfig::instance().enableV8Debug())
+			v8::Debug::DebugBreak(v8::Isolate::GetCurrent());
+	}
+	void init(v8::Isolate *iso) {
+		v8pp::module m(iso);
+		m.set("break", &_break);
+		iso->GetCurrentContext()->Global()->Set(v8::String::NewFromUtf8(iso, "debug"), m.new_instance());
+	}
+}
+
 namespace buffer {
 	class buffer {
 	public:
@@ -141,6 +156,7 @@ namespace buffer {
 		}
 
 		buffer() { }
+
 	public:
 		static v8::Handle<v8::Value> New(QByteArray buff) {
 			buffer *n = new buffer();
@@ -164,6 +180,7 @@ namespace buffer {
 				.set("reserve", &buffer::reserve)
 				.set("resize", &buffer::resize)
 				.set("fromString", &buffer::fromString);
+		
 		cbuffer.class_function_template()->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
 			[](uint32_t index, v8::PropertyCallbackInfo<v8::Value> const& info) {
 				auto klass = v8pp::from_v8<buffer&>(info.GetIsolate(), info.This());
@@ -464,6 +481,7 @@ namespace fs {
 };
 
 #include <QtCore/QProcessEnvironment>
+#include <QtCore/qcoreapplication.h>
 
 namespace process {
 	QProcessEnvironment q;
@@ -537,14 +555,7 @@ namespace process {
 		m.set("exit", &exit);
 
 		m.set("cwd", &cwd);
-
-/*		auto args = QCoreApplication::arguments();
-		v8::Local<v8::Array> argv = v8::Array::New(iso, args.length());
-		for (int i = 0; i < args.length(); i++) {
-			argv->Set(i, v8::String::NewFromUtf8(iso, args[i].toUtf8().data()));
-		}
-		m.set_const("argv", argv);*/
-
+		
 		auto i = m.new_instance();
 		i->Set(v8::String::NewFromUtf8(iso, "mainModule"), v8::String::NewFromUtf8(iso, ""));
 
@@ -822,14 +833,7 @@ namespace ModAPI {
 		});
 	}
 
-	class qmlref {
-	private:
-		QSharedPointer<QmlNode> m_pNode;
-		QString m_sField;
-	public:
-		qmlref(QSharedPointer<QmlNode> x, QString field) :m_pNode(x), m_sField(field) {} // no cons from js
-		
-	};
+	class qmlref;
 
 	class qmlnode {
 	private:
@@ -845,12 +849,216 @@ namespace ModAPI {
 		static v8::Handle<v8::Value> New(QSharedPointer<QmlNode> x) {
 			qmlnode *n = new qmlnode(x);
 			return v8pp::class_<qmlnode>::import_external(v8::Isolate::GetCurrent(), n);
+			
 		}
+
+	public: // property
+		v8::Handle<v8::Value> GetParent();
+
+		v8::Handle<v8::String> GetName();
+
+		v8::Handle<v8::String> GetType();
+		void SetType(const char* t);
+		
+		v8::Handle<v8::Array> GetVars();
+		void SetVars(v8::Handle<v8::Array> vars);
+	private:
+		v8::Handle<v8::Array> vars;
+		
+	public: // functions
+		v8::Handle<v8::Array> obj();
+		v8::Handle<v8::Array> all();
+		v8::Handle<v8::Array> names();
+		v8::Handle<v8::Array> obj();
+
+		bool exists(const char * name) {
+			return m_pNode->NameExists(name);
+		}
+
+		void on(v8::FunctionCallbackInfo<v8::Value> &info) {
+			
+		}
+
+		bool binded(const char *name) {
+			return m_pNode->ValueExists(name);
+		}
+
+		v8::Handle<v8::Value> get(const char* name) {
+
+		}
+
+		v8::Handle<v8::Value> ref(const char* name) {
+
+		}
+
+		v8::Handle<v8::Value> end() {
+			return GetParent();
+		}
+
+		v8::Handle<v8::Value> clr(const char *str) {
+
+		}
+
+		void set(const char *str, v8::Handle<v8::Value> val) {
+
+		}
+
+		void def(v8::FunctionCallbackInfo<v8::Value> &info) {
+
+		}
+
+		void _default(v8::FunctionCallbackInfo<v8::Value> &info) {
+
+		}
+
+		void readonly(v8::FunctionCallbackInfo<v8::Value> &info) {
+
+		}
+
+		v8::Handle<v8::Object> info(const char *name) {
+			// ?
+			// v8pp::from_v8
+		}
+
+		void ret(v8::FunctionCallbackInfo<v8::Value> &info) {
+
+		}
+
+		qmlnode* add(qmlnode* node) {
+
+			return this;
+		}
+
+		qmlnode* addBefore(qmlnode* node) {
+
+			return this;
+		}
+
+		qmlnode* makeObject(const char* name) {
+
+		}
+
+		qmlnode* makeProperty(const char* name, const char* ret) {
+
+		}
+
+		void kill() {
+
+		}
+
+		qmlnode* remove(const char *name) {
+
+		}
+
+		void getObjectById(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// const char* target, int max_deep = 0
+		}
+
+		void getObjectsByType(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// const char* target, int max_deep = 0
+		}
+
+		void getValueByName(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// const char* target, int max_deep = 0
+		}
+
+		void select(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// QString field, QString value, int max_deep = 0
+		}
+
+
+
+
+	};
+
+
+	class qmlref {
+	private:
+		QSharedPointer<QmlNode> m_pNode;
+		QString m_sField;
+
+		bool m_bNull;
+	public:
+		qmlref(QSharedPointer<QmlNode> x, QString field) :m_pNode(x), m_sField(field) {} // no cons from js
+		qmlref() { m_bNull = true; }
+		qmlref(const qmlref& r) :m_pNode(r.m_pNode), m_sField(r.m_sField), m_bNull(r.m_bNull) { ; }
+
+	public: // property
+		v8::Handle<v8::String> GetName() {
+			return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), m_sField.toUtf8().data(), v8::NewStringType::kNormal).ToLocalChecked();
+		}
+
+		void remove() {
+			m_pNode->EraseByName(m_sField);
+		}
+
+		void val(v8::FunctionCallbackInfo<v8::Value> &info) {
+			if (info.Length() == 0) {
+				info.GetReturnValue().Set(qmlnode(m_pNode).get(m_sField.toUtf8().data()));
+			}
+			else if (info.Length() == 1) {
+				qmlnode(m_pNode).set(m_sField.toUtf8().data(), info[0]);
+				info.GetReturnValue().SetNull();
+			}
+			else {
+				info.GetReturnValue().Set(v8pp::throw_ex(v8::Isolate::GetCurrent(), "Wrong number of arguments."));
+			}
+			// (QVariant)
+		}
+
+		v8::Handle<v8::Value> info() {
+			return qmlnode(m_pNode).info(m_sField.toUtf8().data());
+		}
+
+		void on(v8::FunctionCallbackInfo<v8::Value> &info) {
+			if (info.Length() == 0) {
+				;// _on();
+			}
+			else if (info.Length() == 1) {
+				//_on(info[0]);
+				info.GetReturnValue().Set(v8pp::to_v8<qmlref*>(this));
+			}
+			// (JsQmlNode*)
+		}
+
+
+		void _default(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// (bool)
+		}
+
+		void readonly(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// (bool)
+		}
+
+		void ret(v8::FunctionCallbackInfo<v8::Value> &info) {
+			// (const char*)
+		}
+
+		bool isNull() {
+			return m_bNull;
+		}
+
+		bool isNameExists() {
+			return m_pNode ? m_pNode->NameExists(m_sField) : 0;
+		}
+
+		bool isValueExists() {
+			return m_pNode ? m_pNode->ValueExists(m_sField) : 0;
+		}
+
+		v8::Handle<v8::Value> end() {
+			return qmlnode::New(m_pNode);
+		}
+
 	};
 
 	class qmldocument {
 	private:
 		QSharedPointer<Document> m_pDoc;
+
+		v8::Handle<v8::Value> roots;
+		v8::Handle<v8::Array> imports;
+		v8::Handle<v8::Array> parmas;
 	public:
 		explicit qmldocument(buffer* buffer) {
 			if (buffer->_buff == nullptr) {
@@ -859,6 +1067,20 @@ namespace ModAPI {
 			}
 			QmlProcessor process(buffer->_buff);
 			m_pDoc = QSharedPointer<Qml::Document>(process.GenerateDocument());
+
+			imports = v8::Array::New(v8::Isolate::GetCurrent(), m_pDoc->vImports.count());
+
+			int i = 0;
+			for (auto s : m_pDoc->vImports) {
+				imports->Set(i, v8pp::to_v8<const char*>(v8::Isolate::GetCurrent(), (const char*) s.toUtf8().data()));
+			}
+			
+			parmas = v8::Array::New(v8::Isolate::GetCurrent(), m_pDoc->vParmas.count());
+
+			i = 0;
+			for (auto s : m_pDoc->vParmas) {
+				parmas->Set(i, v8pp::to_v8<const char*>(v8::Isolate::GetCurrent(), (const char*)s.toUtf8().data()));
+			}
 		}
 	public:
 		static v8::Handle<v8::Value> New(buffer* buffer) {
@@ -870,8 +1092,53 @@ namespace ModAPI {
 		}
 	public:
 		v8::Handle<v8::Value> get_root() {
-			return qmlnode::New(m_pDoc->root);
+			return roots;
 		}
+
+		v8::Handle<v8::Value> get_imports() {
+			return imports;
+		}
+		v8::Handle<v8::Value> set_imports(v8::Handle<v8::Array> ary) {
+			for (int i = 0; i < ary->Length(); i++)
+				if (!ary->Get(i)->IsString()) {
+					return v8pp::throw_ex(v8::Isolate::GetCurrent(), "Imports allow only string");
+				}
+			return imports = ary;
+		}
+
+		v8::Handle<v8::Value> get_parmas() {
+			return parmas;
+		}
+
+		v8::Handle<v8::Value> set_parmas(v8::Handle<v8::Array> ary) {
+			for (int i = 0; i < ary->Length(); i++)
+				if (!ary->Get(i)->IsString()) {
+					return v8pp::throw_ex(v8::Isolate::GetCurrent(), "Parmas allow only string");
+				}
+			return parmas = ary;
+		}
+
+		static QList<QString>&& toQStringArray(v8::Handle<v8::Array> ary) {
+			QList<QString> list;
+			for (int i = 0; i < ary->Length(); i++) {
+				if (!ary->Get(i)->IsString()) {
+					v8pp::throw_ex(v8::Isolate::GetCurrent(), "Parmas allow only string");
+					return std::move(list);
+				}
+				auto s = (v8pp::from_v8<const char*>(v8::Isolate::GetCurrent(), ary->Get(i)->ToString()));
+				list.append(QString::fromUtf8(s));
+			}
+			return std::move(list);
+		}
+
+		v8::Handle<v8::Value> getCode() {
+			// return buffer
+			m_pDoc->vImports = toQStringArray(imports);
+			m_pDoc->vParmas = toQStringArray(parmas);
+			auto buff = m_pDoc->GenCode();
+			return buffer::New(buff.toUtf8());
+		}
+
 	};
 
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
@@ -881,11 +1148,24 @@ namespace ModAPI {
 		v8pp::class_<qmlref> cref(iso);
 
 		cdoc.ctor<buffer*>()
-			.set("node", v8pp::property(&qmldocument::get_root));
+			.set("node", v8pp::property(&qmldocument::get_root))
+			.set("imports", v8pp::property(&qmldocument::get_imports, &qmldocument::set_imports))
+			.set("parmas", v8pp::property(&qmldocument::get_parmas, &qmldocument::set_parmas))
+			.set("toString", &qmldocument::getCode);
+
+		/*
+		cdoc_imports.class_function_template()->InstanceTemplate()->SetHandler(v8::IndexedPropertyHandlerConfiguration(
+			[](uint32_t index, v8::PropertyCallbackInfo<v8::Value> const& info) {
+				auto klass = v8pp::from_v8<qmlducument_imports&>(info.GetIsolate(), info.This());
+
+			}, ));
+			*/
 		cnode.ctor<const char*>();
 
 		v8pp::module m(iso);
 		m.set_const("api", "1.0.0");
+		m.set_const("rmmv", QCoreApplication::applicationVersion().toUtf8().constData());
+
 		m.set("QMLDocument", cdoc);
 		m.set("QMLNode", cnode);
 
@@ -903,7 +1183,7 @@ void JSCore::initAll(v8::Isolate * iso) {
 	v8::TryCatch try_catch;
 	//global::init(iso);
 	console::init(iso);
-	
+	debug::init(iso);	
 
 	if (try_catch.HasCaught()) {
 		try_catch.ReThrow();

@@ -116,8 +116,8 @@ static std::string ReceiveMessage(Socket* conn) {
 		}
 		else {
 			// For now just print all other headers than Content-Length.
-			QString str("%1: %2"); str.arg(key, value != nullptr ? value : "(no value)");
-			DebugAgent::log(str);
+			QString str("%1: %2"); 
+			DebugAgent::log(str.arg(key, value != nullptr ? value : "(no value)"));
 		}
 	}
 
@@ -208,12 +208,11 @@ void DebugAgentMessageHandler(const v8::Debug::Message& message) {
 	DebugAgent::debugAgent->onDebugMessage(message);
 }
 
-
 DebugAgent::DebugAgent(v8::Isolate* isolate, const std::string& hostName, int port, bool waitForConnection)
 	: isolate(isolate), hostName(hostName), port(port), server(new Socket),
 	client(nullptr), terminate(false) {
-
 	// Allow this socket to reuse port even if still in TIME_WAIT.
+
 	server->setReuseAddress(true);
 
 	// First bind the socket to the requested port.
@@ -229,7 +228,7 @@ DebugAgent::DebugAgent(v8::Isolate* isolate, const std::string& hostName, int po
 			// Accept the new connection.
 			client = server->accept();
 			if (client) {
-				v8::Debug::DebugBreak(isolate);
+				// v8::Debug::DebugBreak(isolate);
 				// Create and start a new session.
 				thread = std::thread(std::bind(&DebugAgent::runClientLoop, this));
 			}
@@ -241,15 +240,10 @@ DebugAgent::DebugAgent(v8::Isolate* isolate, const std::string& hostName, int po
 
 }
 
-
 DebugAgent::~DebugAgent() {
 	v8::Debug::SetMessageHandler(isolate, nullptr);
 	v8::Debug::CancelDebugBreak(isolate);
 	terminate = true;
-	delete server;
-	server = nullptr;
-	delete client;
-	client = nullptr;
 	thread.join();
 }
 
@@ -259,9 +253,14 @@ void DebugAgent::runClientLoop() {
 			// Wait for connection
 			if (server->listen(1)) {
 				// Accept the new connection.
-				client = server->accept();
-				if (!client) {
-					return;
+				while (!terminate) {
+					client = server->accept();
+					if (client == (void*)-1)
+						return;
+					if (client == nullptr)
+						continue;
+					if (client)
+						break;
 				}
 			}
 		}
@@ -306,6 +305,14 @@ void DebugAgent::runClientLoop() {
 			delete client;
 			client = nullptr;
 		}
+	}
+	if (client) {
+		delete client;
+		client = nullptr;
+	}
+	if (server) {
+		delete server;
+		server = nullptr;
 	}
 }
 

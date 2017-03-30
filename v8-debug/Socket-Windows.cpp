@@ -19,15 +19,22 @@ public:
 	int nativeHandle;
 };
 
+struct global_socket {
+	global_socket() {
+		WSADATA wsaData;
+		WSAStartup(MAKEWORD(2, 2), &wsaData);
+	}
+	~global_socket(){
+		WSACleanup();
+	}
+} G;
+
 Socket::Socket() {
-	WSADATA wsaData;
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
 	data = new PlatformData();
 }
 
 Socket::~Socket() {
 	shutdown();
-	WSACleanup();
 	delete data;
 }
 
@@ -61,16 +68,16 @@ Socket* Socket::accept() {
 	if (!isValid()) {
 		return nullptr;
 	}
-	while (true) {
+	//while (true) {
 		int native_handle = ::accept(data->nativeHandle, nullptr, nullptr);
 		if (native_handle == InvalidNativeHandle) {
 			if (errno == EINTR) {
-				continue;
+				nullptr;
 			}
-			return nullptr;
+			return (Socket*)-1;
 		}
 		return new Socket(new PlatformData(native_handle));
-	}
+	//}
 }
 
 
@@ -183,6 +190,8 @@ bool Socket::setReuseAddress(bool reuse_address) {
 }
 
 bool Socket::isValid() const {
+	if (!this)
+		return false;
 	return data->nativeHandle != InvalidNativeHandle;
 }
 
