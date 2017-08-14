@@ -110,8 +110,11 @@ void ScriptCore::RunScript() {
 					v8::Debug::DebugBreak(isolate);
 				v8pp::call_v8(isolate, f, cxt->Global());
 				if (try_catch.HasCaught() || try_catch.HasTerminated()) {
-					auto error = GetErrorMessage(isolate, try_catch.Exception(), try_catch.Message());
-					LogManager::instance().err(QString::fromWCharArray(error.c_str()));
+					if (!try_catch.Message().IsEmpty()) {
+						auto error = GetErrorMessage(isolate, try_catch.Exception(), try_catch.Message());
+						LogManager::instance().err(QString::fromWCharArray(error.c_str()));
+					}
+					v8::V8::TerminateExecution(isolate);
 				}
 			}
 		}

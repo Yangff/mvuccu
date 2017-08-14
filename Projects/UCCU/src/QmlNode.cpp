@@ -275,7 +275,7 @@ const QList<QString> Qml::QmlNode::GetArrays() {
 	return s;
 }
 
-const QList<QString> Qml::QmlNode::GetVars(){
+QList<QString> Qml::QmlNode::GetVars(){
 	return m_lVars;
 }
 

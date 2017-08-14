@@ -146,7 +146,7 @@ namespace Qml {
 		const QList<QSharedPointer<QmlNode>> GetUnnamedObjects(); // XXX {} 
 
 		const QList<QString> GetArrays(); // [XXX{}, YYY{}]
-		const QList<QString> GetVars();
+		/*const*/ QList<QString> GetVars();
 		void SetVars(QList<QString> l);
 		const QList<QString> GetFunctions();
 
