@@ -22,7 +22,7 @@ QMap<QString, int> *categoryEnabler;
 bool bQappTriggered;
 
 struct fingerprint {
-	bool v;
+	bool v, vp;
 	int version;
 	const unsigned char *tree;
 	const unsigned char *name;
@@ -30,7 +30,9 @@ struct fingerprint {
 } fp;
 
 bool QApplicationReady() {
-	if (fp.v) {
+	if (fp.v && !fp.vp) {
+		fp.vp = true;
+		LogManager::instance().log("Start mods");
 		Injector::instance().Wrapper->Call_qRegisterResourceData(fp.version, fp.tree, fp.name, fp.data);
 		if (unsigned char * new_data = ModManager::instance().RunMods()) {
 			Injector::instance().Wrapper->Call_qUnregisterResourceData(fp.version, fp.tree, fp.name, fp.data);
@@ -54,7 +56,8 @@ bool wrap_qRegisterResourceData(
 	bool succ = Injector::instance().Wrapper->Call_qRegisterResourceData(version, tree, name, data);
 	if (succ && QDir(":/qml").exists() && ModManager::instance().WaitingForRes()) {
 		ModManager::instance().MarkFound();
-		fp.v = true; fp.version = version; fp.tree = tree; fp.name = name; fp.data = data;
+		fp.v = true; fp.vp = false; fp.version = version; fp.tree = tree; fp.name = name; fp.data = data;
+		LogManager::instance().log("Resource hooked");
 		Injector::instance().Wrapper->Call_qUnregisterResourceData(version, tree, name, data);
 		/*
 		if (unsigned char * new_data = ModManager::instance().RunMods()) {
@@ -88,14 +91,27 @@ static void objectRemoveHook(QObject* o) {
 }
 */
 
+QMap<QString, QString> _repMap;
+QList<QString> _newTrans;
+void Injector::addTranslator(QString fn) {
+	_newTrans.append(fn);
+}
+void Injector::replaceTranslator(QString a, QString b) {
+	_repMap[a] = b;
+}
 class WrappedLoad {
 public:
 	bool load(const QString & filename,
 		const QString & directory,
 		const QString & search_delimiters,
 		const QString & suffix) {
+		QString new_name = filename;
+		if (_repMap.find(filename) != _repMap.end()) {
+			new_name = _repMap[filename];
+		}
 		if (!Injector::instance().bQappTriggered) {
 			Injector::instance().bQappTriggered = true;
+			LogManager::instance().log("Translate hooked");
 			/*for (auto x : *objects) {
 				if (QQmlApplicationEngine *qapp = qobject_cast<QQmlApplicationEngine*>(x)) {
 					qeh->Start(qapp);
@@ -110,11 +126,22 @@ public:
 			qInstallMessageHandler(&LogManager::qtMessageHandler);
 		}
 
-		/*if (filename.endsWith("en_US") && uccuConfig::instance().enableLanguageFix()) {
-			bool b = Injector::instance().Wrapper->Call_QTranslator_load(this, uccuConfig::instance().GetLanguageFile(), directory, search_delimiters, suffix);
+		if (!filename.endsWith("cocoa")) {
+			// loading language pack
+			bool b = false;
+			if (uccuConfig::instance().enableLanguageFix())
+				b = Injector::instance().Wrapper->Call_QTranslator_load(this, uccuConfig::instance().GetLanguageFile(), directory, search_delimiters, suffix);
+			else {
+				b = Injector::instance().Wrapper->Call_QTranslator_load(this, new_name, directory, search_delimiters, suffix);
+			}
+			for (auto x : _newTrans) {
+				if (_repMap.find(x) != _repMap.end())
+					x = _repMap[x];
+				b = Injector::instance().Wrapper->Call_QTranslator_load(this, x, directory, search_delimiters, suffix);
+			}
 			return b;
-		}*/
-		return Injector::instance().Wrapper->Call_QTranslator_load(this, filename, directory, search_delimiters, suffix);
+		}
+		return Injector::instance().Wrapper->Call_QTranslator_load(this, new_name, directory, search_delimiters, suffix);
 	}
 };
 

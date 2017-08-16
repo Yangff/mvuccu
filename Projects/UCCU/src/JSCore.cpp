@@ -146,7 +146,6 @@ namespace v8stringlist {
 		));
 		cconst_list.set("length", v8pp::property(&const_list::GetLength));
 		cconst_list.class_function_template()->SetClassName(v8pp::to_v8(iso, "ConstList"));
-		
 
 		m.set("list", clist);
 		m.set("constlist", cconst_list);
@@ -698,11 +697,16 @@ namespace process {
 
 
 		m.set("exit", &exit);
-
 		m.set("cwd", &cwd);
 
 		auto i = m.new_instance();
 		i->Set(v8::String::NewFromUtf8(iso, "mainModule"), v8::String::NewFromUtf8(iso, ""));
+
+		auto ary = v8::Array::New(iso, QCoreApplication::arguments().length());
+		auto arg = QCoreApplication::arguments();
+		for (int i = 0; i < arg.length(); i++)
+			ary->Set(i, Helper::QSTR2V8(arg[i]));
+		v8pp::set_option(iso, i, "argv", ary);
 
 		_process.Reset(iso, i);
 
@@ -1918,7 +1922,9 @@ namespace ModAPI {
 		v8pp::module m(iso);
 		m.set_const("api", "1.0.0");
 		m.set_const("rmmv", QCoreApplication::applicationVersion().toUtf8().constData());
-
+#ifdef BUILD_VERSION
+		m.set_const("build", #BUILD_VERSION);
+#endif
 		m.set("QMLDocument", cdoc);
 		m.set("QMLNode", cnode);
 
@@ -1931,6 +1937,49 @@ namespace ModAPI {
 	}
 };
 
+#include <QtCore/qresource.h>
+#include "Injector.h"
+namespace platform {
+	bool registerResourceBuffer(buffer::buffer *buff, const char* root) {
+		return QResource::registerResource((const uchar*)buff->_buff.constData(), root);
+	}
+
+	bool registerResourceRCC(const char* rcc, const char* root) {
+		return QResource::registerResource(QString(rcc), root);
+	}
+
+	void replaceTranslator(const char* org, const char* rep) {
+		Injector::instance().replaceTranslator(org, rep);
+	}
+
+	void addTranslator(const char* fname) {
+		Injector::instance().addTranslator(fname);
+	}
+	
+	v8::Handle<v8::Value> init(v8::Isolate *iso) {
+		v8pp::module m(iso);
+		m.set_const("qt_version", QT_VERSION_STR);
+#define CChar(x) ((const char*)((x).toUtf8().data()))
+		m.set_const("os_type", CChar(QSysInfo::productType()));
+		m.set_const("os_version", CChar(QSysInfo::productVersion()));
+		m.set_const("os", CChar(QSysInfo::prettyProductName()));
+		m.set_const("kernel", CChar(QSysInfo::kernelType()));
+		m.set_const("kernel_version", CChar(QSysInfo::kernelVersion()));
+		m.set_const("cpu", CChar(QSysInfo::currentCpuArchitecture()));
+		m.set_const("app_home", CChar(QCoreApplication::applicationDirPath()));
+		m.set_const("locale", CChar(QLocale::system().name()));
+		
+		m.set("registerResourceBuffer", &registerResourceBuffer);
+		m.set("registerResourceRCC", &registerResourceRCC);
+		
+		
+		m.set("replaceTranslatorFile", &replaceTranslator);
+		m.set("addTraslatorFile", &addTranslator);
+		
+		auto ins = m.new_instance();
+		return ins;
+	}
+};
 
 void JSCore::initAll(v8::Isolate * iso) {
 	v8::TryCatch try_catch;
@@ -1958,8 +2007,9 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("buffer", buffer::init(iso));
 	native_module::addmodule("vm", vm::init(iso));
 	native_module::addmodule("modapi", ModAPI::init(iso));
-	native_module::addmodule("_modapi", _ModAPI::init(iso));
+	// native_module::addmodule("_modapi", _ModAPI::init(iso));
 	native_module::addmodule("v8list", v8stringlist::init(iso));
+	native_module::addmodule("platform", platform::init(iso));
 
 	native_module::load("util", "./mvuccu/lib/util.js");
 	if (try_catch.HasCaught()) {

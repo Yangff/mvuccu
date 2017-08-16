@@ -1,6 +1,7 @@
 #pragma once
 
 #include <IQt5Wrapper.h>
+#include <QtCore/qstring.h>
 
 class Injector {
 public:
@@ -14,4 +15,7 @@ public:
 	bool OnExit();
 	bool bQappTriggered;
 	IQt5Wrapper* Wrapper;
+public:
+	void replaceTranslator(QString original, QString replace);
+	void addTranslator(QString fname);
 };
