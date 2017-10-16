@@ -1,4 +1,5 @@
 #include "QmlProcesser.h"
+#include "LogManager.h"
 
 #include <QtQml/5.4.2/QtQml/private/qqmljslexer_p.h> 
 #include <QtQml/5.4.2/QtQml/private/qqmljsparser_p.h>
@@ -129,7 +130,7 @@ Document* _GenerateDocument(QmlProcessor *_this, QString code) {
 	bool x = parser->parse();
 
 	for (auto m : parser->diagnosticMessages()) {
-		qDebug() << m.message;
+		LogManager::instance().log(m.message);
 	}
 
 	if (!x)

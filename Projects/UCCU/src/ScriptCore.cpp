@@ -108,6 +108,7 @@ void ScriptCore::RunScript() {
 			if (v8pp::get_option(isolate, JSCore::require("module").As<v8::Object>(), "runMain", f)) {
 				if (uccuConfig::instance().waitForConnection() && uccuConfig::instance().enableV8Debug())
 					v8::Debug::DebugBreak(isolate);
+
 				v8pp::call_v8(isolate, f, cxt->Global());
 				if (try_catch.HasCaught() || try_catch.HasTerminated()) {
 					if (!try_catch.Message().IsEmpty()) {

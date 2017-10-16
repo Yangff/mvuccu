@@ -202,9 +202,11 @@ Qml::QmlNode::Value Qml::QmlNode::GetValueByName(QString name) {
 	return v;
 }
 
+static Qml::QmlNode::Property proNotExist;
+
 Qml::QmlNode::Property& Qml::QmlNode::GetPropertyByName(QString name)
 {
-	Qml::QmlNode::Property pro; 
+	auto &pro = proNotExist;
 	pro.clear();
 	pro.eSymbolType = NoSymbol; pro.eValueType = NoValue;
 	auto _id = m_mNames.find(name);
@@ -219,7 +221,7 @@ Qml::QmlNode::Property& Qml::QmlNode::GetPropertyByName(QString name)
 }
 
 Qml::QmlNode::Property& Qml::QmlNode::GetPropertyByObject(QSharedPointer<QmlNode> ptr) {
-	Qml::QmlNode::Property pro; 
+	auto &pro = proNotExist;
 	pro.clear();
 	pro.eSymbolType = NoSymbol; pro.eValueType = NoValue;
 	auto _id = m_mBindings.find(ptr.data());

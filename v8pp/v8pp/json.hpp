@@ -10,6 +10,7 @@
 #define V8PP_JSON_HPP_INCLUDED
 
 #include <string>
+
 #include <v8.h>
 
 namespace v8pp {
