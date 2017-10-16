@@ -1,0 +1,6 @@
+{
+  "name": "Test1",
+  "version": "0.0.0",
+  "description": "Test, if I return a QList<QString> for read only, can user: 1) edit the list 2) insert into",
+  "author": "Yangff"
+}
