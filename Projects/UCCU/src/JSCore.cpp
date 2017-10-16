@@ -432,7 +432,7 @@ namespace fs {
 		auto isolate = v8::Isolate::GetCurrent();
 		v8::EscapableHandleScope handle_scope(isolate);
 		QDir d(dir);
-		auto fn = d.entryList({ "*" }, QDir::NoDotAndDotDot | QDir::AllDirs);
+		auto fn = d.entryList({ "*" }, QDir::NoDotAndDotDot | QDir::AllEntries);
 		
 		v8::Handle<v8::Array> ary = v8::Array::New(isolate, fn.length());
 		int cnt = 0;
@@ -1137,8 +1137,9 @@ namespace ModAPI {
 	private:
 		void create(QString typeId) { m_pNode = QSharedPointer<Qml::QmlNode>(new QmlNode(typeId)); };
 		void init_v8obj() {
-			vars = v8stringlist::list::New(m_pNode->GetVars());
-			names = v8stringlist::const_list::New(m_pNode->GetNames());
+			/// auto iso = v8::Isolate::GetCurrent();
+			/// = v8pp::persistent<v8::Value>(iso, v8stringlist::list::New(m_pNode->GetVars()));
+			/// = v8pp::persistent<v8::Value>(iso, v8stringlist::const_list::New(m_pNode->GetNames()));
 		}
 	public:
 		explicit qmlnode(const char *typeId) :m_pNode() {
@@ -1180,8 +1181,8 @@ namespace ModAPI {
 		}
 
 	private:
-		v8::Handle<v8::Value> vars;
-		v8::Handle<v8::Value> names;
+		//v8pp::persistent<v8::Value> vars;
+		//v8pp::persistent<v8::Value> names;
 		v8::Handle<v8::Array> wrap(const QList<QSharedPointer<QmlNode>> &l) {
 			auto ary = v8::Array::New(v8::Isolate::GetCurrent(), l.length());
 			for (int i = 0; i < l.length(); i++) {
@@ -1203,9 +1204,16 @@ namespace ModAPI {
 			}
 			return ary;
 		}
+		v8::Handle<v8::Array> wrap(const QList<QString> &l) {
+			auto ary = v8::Array::New(v8::Isolate::GetCurrent(), l.length());
+			for (int i = 0; i < l.length(); i++) {
+				ary->Set(i, QSTR2V8(l.at(i)));
+			}
+			return ary;
+		}
 	public:
 		v8::Handle<v8::Value> GetVars() {
-			return vars;
+			return wrap(m_pNode->GetVars());//vars;
 		}
 		v8::Handle<v8::Array> GetObjs() {
 			return wrap(m_pNode->GetUnnamedObjects());
@@ -1214,7 +1222,7 @@ namespace ModAPI {
 			return wrap(m_pNode->GetUnnamedObjects());
 		}
 		v8::Handle<v8::Value> GetNames() {
-			return names;
+			return wrap(m_pNode->GetNames()); //v8stringlist::const_list::New(m_pNode->GetNames());
 		}
 	private:
 	public: // functions
@@ -1245,9 +1253,11 @@ namespace ModAPI {
 			v8::EscapableHandleScope handle_scope(info.GetIsolate());
 			if (info.Length() == 1) {
 				info.GetReturnValue().Set(handle_scope.Escape(_on(V82QSTR(info[0]))));
+				return;
 			}
 			else if (info.Length() == 2) {
 				info.GetReturnValue().Set(handle_scope.Escape(_on(V82QSTR(info[0]), v8pp::from_v8<qmlnode*>(info.GetIsolate(), info[1]))));
+				return;
 			}
 			info.GetReturnValue().Set(handle_scope.Escape(v8pp::throw_ex(info.GetIsolate(), "wrong number of argument(s)", v8::Exception::RangeError)));
 		}
@@ -1480,16 +1490,17 @@ namespace ModAPI {
 					v8pp::set_option(v8::Isolate::GetCurrent(), m, "kind", "Property");
 					v8pp::set_option(v8::Isolate::GetCurrent(), m, "_default", p.p.bDefault);
 					v8pp::set_option(v8::Isolate::GetCurrent(), m, "readonly", p.p.bReadOnly);
-					v8pp::set_option(v8::Isolate::GetCurrent(), m, "ret", p.p.retType);
+					v8pp::set_option(v8::Isolate::GetCurrent(), m, "ret", QSTR2V8(p.p.retType));
 				}
 #define b(x) \
-			if (p.eSymbolType == Qml::QmlNode::SymbolType::x) \
-				v8pp::set_option(v8::Isolate::GetCurrent(), m, "kind", #x);
+				if (p.eSymbolType == Qml::QmlNode::SymbolType::x) \
+					v8pp::set_option(v8::Isolate::GetCurrent(), m, "kind", #x);
+				
 				b(Object)
-					b(Signal)
-					b(Function)
+				b(Signal)
+				b(Function)
 #undef b
-					v8pp::set_option(v8::Isolate::GetCurrent(), m, "binded", binded(name));
+				v8pp::set_option(v8::Isolate::GetCurrent(), m, "binded", binded(name));
 			}
 			return m;
 		}
