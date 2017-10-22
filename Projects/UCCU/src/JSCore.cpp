@@ -255,12 +255,12 @@ namespace buffer {
 			_buff = buff;
 		}
 	public:
-		v8::Handle<v8::Value> ToString() {
+		v8::Handle<v8::Value> toString() {
 			auto iso = v8::Isolate::GetCurrent();
 			v8::EscapableHandleScope handle_scope(iso);
 			v8::TryCatch try_catch;
 
-			auto maybe = v8::String::NewFromOneByte(iso, (uint8_t*)_buff.data(), v8::NewStringType::kNormal, _buff.length());
+			auto maybe = v8::String::NewFromUtf8(iso, _buff.data(), v8::NewStringType::kNormal, _buff.length());
 			if (maybe.IsEmpty() || try_catch.HasCaught())
 				return handle_scope.Escape(try_catch.ReThrow());;
 			v8::Handle<v8::String> s = maybe.ToLocalChecked();
@@ -306,7 +306,7 @@ namespace buffer {
 	v8::Handle<v8::Function> init(v8::Isolate *iso) {
 		v8pp::class_<buffer> cbuffer(iso);
 		cbuffer.ctor<int>()
-			.set("ToString", &buffer::ToString)
+			.set("toString", &buffer::toString)
 			.set("length", v8pp::property(&buffer::GetLength))
 			.set("clone", &buffer::clone)
 			.set("reserve", &buffer::reserve)
@@ -425,7 +425,7 @@ namespace fs {
 		}
 		if ((mode != 0) && ((mode & p) != 0))
 			return args.GetReturnValue().SetNull();
-		return args.GetReturnValue().Set(isolate->ThrowException(v8::String::NewFromUtf8(isolate, "no access")));
+		return args.GetReturnValue().Set(v8pp::throw_ex(isolate, "no access"));
 	}
 
 	v8::Handle<v8::Value> readdirSync(const char * dir) {
@@ -449,7 +449,7 @@ namespace fs {
 		if (f.exists() && f.open(QIODevice::ReadOnly)) {
 			auto d = f.readAll();
 			f.close();
-			return v8::String::NewFromOneByte(isolate, (uint8_t*)d.data(), v8::NewStringType::kNormal, d.length()).ToLocalChecked();
+			return v8::String::NewFromUtf8(isolate, d.data(), v8::NewStringType::kNormal, d.length()).ToLocalChecked();
 		}
 		return v8::Null(isolate);
 	}
@@ -692,10 +692,12 @@ namespace process {
 
 		// platform
 #ifdef Q_OS_WIN
-		m.set_const("platform", v8::String::NewFromTwoByte(iso, (uint16_t*)L"win32"));
+		m.set_const("platform", "win32");
 #else
 #ifdef Q_OS_MACX
 		m.set_const("platform", "darwin");
+#elsif Q_OS_LINUX
+		m.set_const("platform", "linux");
 #else
 		m.set_const("platform", "unsupported");
 #endif
@@ -890,7 +892,7 @@ namespace native_module {
 		v8::String::Utf8Value s(code);
 		QString qs(*s);
 		QString r = _wrap(qs);
-		return handle_scope.Escape(v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), r.toUtf8().data()));
+		return handle_scope.Escape(Helper::QSTR2V8(r));
 	}
 
 	v8::Handle<v8::Value> load(const char * name, const char * path) {
@@ -907,13 +909,11 @@ namespace native_module {
 				auto str_exports = v8::String::NewFromUtf8(isolate, "exports");
 				module->Set(str_exports, exports);
 
-				auto filename = v8::String::NewFromUtf8(isolate, f.fileName().toUtf8().data());
-				auto dirname = v8::String::NewFromUtf8(isolate, f.absoluteDir().absolutePath().toUtf8().data());
+				auto filename = Helper::QSTR2V8(f.fileName());
+				auto dirname = Helper::QSTR2V8(f.absoluteDir().absolutePath());
 
 				// v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global::global(isolate));
-				v8::Local<v8::String> source =
-					v8::String::NewFromUtf8(isolate, s.toUtf8().data(),
-						v8::NewStringType::kNormal).ToLocalChecked();
+				v8::Local<v8::String> source = Helper::QSTR2V8(s);
 
 				v8::TryCatch try_catch(isolate);
 				v8::Local<v8::Value> result = vm::_runInContext(isolate, isolate->GetCurrentContext(), source, filename, 0, 0);
@@ -971,8 +971,6 @@ namespace _ModAPI {
 	v8::Handle<v8::Value> get(const char *file) {
 		auto iso = v8::Isolate::GetCurrent();
 		QByteArray content = ResourceManager::instance().GetFileContent(":/" + QString(file));
-		//v8::Handle<v8::String> s = v8::String::NewFromOneByte(iso, (uint8_t*)content.data(), v8::NewStringType::kNormal, content.length()).ToLocalChecked();
-		//return s;
 		return buffer::New(content);
 	}
 	bool update(const char *file, buffer* context) {
@@ -1022,8 +1020,6 @@ namespace ModAPI {
 	v8::Handle<v8::Value> get(const char *file) {
 		auto iso = v8::Isolate::GetCurrent();
 		QByteArray content = ResourceManager::instance().GetFileContent(":/qml/" + QString(file));
-		//v8::Handle<v8::String> s = v8::String::NewFromOneByte(iso, (uint8_t*)content.data(), v8::NewStringType::kNormal, content.length()).ToLocalChecked();
-		//return s;
 		return buffer::New(content);
 	}
 	bool update_buffer(QString file, buffer* context) {
@@ -1219,7 +1215,7 @@ namespace ModAPI {
 			return wrap(m_pNode->GetUnnamedObjects());
 		}
 		v8::Handle<v8::Array> GetAll() {
-			return wrap(m_pNode->GetUnnamedObjects());
+			return wrap(m_pNode->GetObjects());
 		}
 		v8::Handle<v8::Value> GetNames() {
 			return wrap(m_pNode->GetNames()); //v8stringlist::const_list::New(m_pNode->GetNames());
@@ -1524,10 +1520,19 @@ namespace ModAPI {
 		void ret(v8::FunctionCallbackInfo<v8::Value> const&info) {
 			v8::EscapableHandleScope handle_scope(info.GetIsolate());
 			if (info.Length() == 1) {
-				info.GetReturnValue().Set(handle_scope.Escape(_ret(V82QSTR(info[0]))));
-				return;
+				if (info[0]->IsString()) {
+					info.GetReturnValue().Set(handle_scope.Escape(_ret(V82QSTR(info[0]))));
+					return;
+				} else {
+					info.GetReturnValue().Set(handle_scope.Escape(v8pp::throw_ex(info.GetIsolate(), "string is required", v8::Exception::TypeError)));
+					return;
+				}
 			}
 			else if (info.Length() == 2) {
+				if (!(info[0]->IsString() && info[1]->IsString())) {
+					info.GetReturnValue().Set(handle_scope.Escape(v8pp::throw_ex(info.GetIsolate(), "string is required", v8::Exception::TypeError)));
+					return;
+				}
 				info.GetReturnValue().Set(handle_scope.Escape(_ret(V82QSTR(info[0]), V82QSTR(info[1]))));
 				return;
 			}
@@ -1653,7 +1658,7 @@ namespace ModAPI {
 			v8::EscapableHandleScope handle_scope(v8::Isolate::GetCurrent());
 			int max_deep = 0;
 			if (info.Length() == 3) {
-				if (info[1]->IsNumber()) {
+				if (info[2]->IsNumber()) {
 					max_deep = info[1]->Int32Value();
 				}
 			}
@@ -1735,7 +1740,7 @@ namespace ModAPI {
 	};
 
 	v8::Handle<v8::String> qmlref::GetName() {
-		return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), m_sField.toUtf8().data(), v8::NewStringType::kNormal).ToLocalChecked();
+		return Helper::QSTR2V8(m_sField);
 	}
 
 	void qmlref::remove() {
@@ -1910,7 +1915,7 @@ namespace ModAPI {
 		void set_parmas(v8::Handle<v8::Array> ary) {
 			for (int i = 0; i < ary->Length(); i++)
 				if (!ary->Get(i)->IsString()) {
-					v8pp::throw_ex(v8::Isolate::GetCurrent(), "Parmas allow only string", v8::Exception::TypeError);
+					v8pp::throw_ex(v8::Isolate::GetCurrent(), "allow only string", v8::Exception::TypeError);
 					return;
 				}
 			//return parmas = ary;
@@ -1923,8 +1928,7 @@ namespace ModAPI {
 					v8pp::throw_ex(v8::Isolate::GetCurrent(), "allow only string", v8::Exception::TypeError);
 					return list;
 				}
-				auto s = (v8pp::from_v8<const char*>(v8::Isolate::GetCurrent(), ary->Get(i)->ToString()));
-				list.append(QString::fromUtf8(s));
+				list.append(V82QSTR(ary->Get(i)->ToString()));
 			}
 			return list;
 		}
@@ -2166,6 +2170,7 @@ void JSCore::initAll(v8::Isolate * iso) {
 	native_module::addmodule("vm", vm::init(iso));
 	native_module::addmodule("modapi", ModAPI::init(iso));
 	// native_module::addmodule("_modapi", _ModAPI::init(iso));
+	// TODO: Fix v8List or use something else...
 	native_module::addmodule("v8list", v8stringlist::init(iso));
 	native_module::addmodule("platform", platform::init(iso));
 
