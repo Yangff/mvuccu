@@ -119,8 +119,8 @@
       <ModuleDefinitionFile>mvUCCU.def</ModuleDefinitionFile>
     </Link>
     <PostBuildEvent>
-      <Command>cd $(SolutionDir) &amp;&amp; simple-install.bat
-</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (vs13)|Win32'">

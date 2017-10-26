@@ -198,7 +198,7 @@ namespace console {
 			v8pp::throw_ex(v8::Isolate::GetCurrent(), "console.log takes at least one argument", v8::Exception::RangeError);
 			return;
 		}
-		v8::String::Utf8Value _format(args[0]);
+		v8::String::Utf8Value _format(args[0]->ToString());
 		QString result = applyFormat(*_format, args);
 		LogManager::instance().log(result);
 		args.GetReturnValue().SetNull();
@@ -210,7 +210,7 @@ namespace console {
 			v8pp::throw_ex(v8::Isolate::GetCurrent(), "console.log takes at least one argument", v8::Exception::RangeError);
 			return;
 		}
-		v8::String::Utf8Value _format(args[0]);
+		v8::String::Utf8Value _format(args[0]->ToString());
 		QString result = applyFormat(*_format, args);
 		LogManager::instance().err(result);
 		args.GetReturnValue().SetNull();
@@ -451,7 +451,7 @@ namespace fs {
 			f.close();
 			return v8::String::NewFromUtf8(isolate, d.data(), v8::NewStringType::kNormal, d.length()).ToLocalChecked();
 		}
-		return v8::Null(isolate);
+		return v8::Undefined(isolate);
 	}
 
 	v8::Handle<v8::Value> readFileBufferSync(const char * file) {
@@ -462,7 +462,7 @@ namespace fs {
 			f.close();
 			return buffer::buffer::New(d);
 		}
-		return v8::Null(isolate);
+		return v8::Undefined(isolate);
 	}
 
 	uint64_t writeFileSync(const char * file, const char *data) {
@@ -547,7 +547,7 @@ namespace fs {
 			auto str = v8::String::NewFromUtf8(isolate, s.toUtf8().data());
 			return str;
 		}
-		return v8::Null(isolate);
+		return v8::Undefined(isolate);
 	}
 
 	bool renameSync(const char *oldPath, const char *newPath) {
@@ -643,7 +643,7 @@ namespace fs {
 
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/qcoreapplication.h>
-
+#include <QtCore/qlibrary.h>
 namespace process {
 	QProcessEnvironment q;
 	void GetEnv(v8::Local<v8::String> _property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -661,12 +661,7 @@ namespace process {
 		q.insert(*p, *v);
 	}
 
-	void fuck(int time) {
-		Sleep(time);
-	}
-
 	v8::Persistent<v8::ObjectTemplate, v8::CopyablePersistentTraits<v8::ObjectTemplate>> environment;
-
 
 	void exit(int code = 0) {
 		::exit(code);
@@ -683,8 +678,13 @@ namespace process {
 		_process.Reset();
 	}
 
-	void dlopen() {
-
+	bool dlopen(const char *fname) {
+		QLibrary lib(fname);
+		if (lib.load()) {
+			lib.resolve("init")();
+			return true;
+		}
+		return false;
 	}
 
 	void init(v8::Isolate *iso) {
@@ -722,6 +722,7 @@ namespace process {
 
 		m.set("exit", &exit);
 		m.set("cwd", &cwd);
+		m.set("dlopen", &dlopen);
 
 		auto i = m.new_instance();
 		i->Set(v8::String::NewFromUtf8(iso, "mainModule"), v8::String::NewFromUtf8(iso, ""));
@@ -1003,6 +1004,7 @@ namespace _ModAPI {
 		v8pp::module m(iso);
 		m.set_const("api", "0.0.1");
 		m.set_const("rmmv", QCoreApplication::applicationVersion().toUtf8().constData());
+		m.set_const("build", "placeholder");
 
 		m.set("get", &get);
 		m.set("update", &update);
@@ -1110,7 +1112,6 @@ namespace ModAPI {
 		v8::Handle<v8::Value> info();
 
 		void on(v8::FunctionCallbackInfo<v8::Value> const&info);
-
 
 		void _default(v8::FunctionCallbackInfo<v8::Value> const&info);
 
@@ -1943,6 +1944,16 @@ namespace ModAPI {
 			return handle_scope.Escape(buffer::New(buff.toUtf8()));
 		}
 
+		v8::Handle<v8::Value> getCodeString() {
+			// return buffer
+			auto iso = v8::Isolate::GetCurrent();
+			v8::EscapableHandleScope handle_scope(iso);
+			m_pDoc->vImports = toQStringArray(imports.Get(iso));
+			m_pDoc->vParmas = toQStringArray(parmas.Get(iso));
+			auto buff = m_pDoc->GenCode();
+			return handle_scope.Escape(QSTR2V8(buff));
+		}
+
 		void save(v8::FunctionCallbackInfo<v8::Value> const& args) {
 			QString nfile = file;
 			
@@ -2025,7 +2036,8 @@ namespace ModAPI {
 			.set("root", v8pp::property(&qmldocument::get_root))
 			.set("imports", v8pp::property(&qmldocument::get_imports, &qmldocument::set_imports))
 			.set("parmas", v8pp::property(&qmldocument::get_parmas, &qmldocument::set_parmas))
-			.set("toString", &qmldocument::getCode)
+			.set("toBuffer", &qmldocument::getCode)
+			.set("toString", &qmldocument::getCodeString)
 			.set("save", &qmldocument::save);
 
 		/*
@@ -2094,7 +2106,7 @@ namespace ModAPI {
 		m.set("node", &node);
 		m.set("qml", &qml);
 		m.set("doc", &doc);
-
+		
 		return m.new_instance();
 	}
 };
@@ -2134,7 +2146,6 @@ namespace platform {
 		m.set("registerResourceBuffer", &registerResourceBuffer);
 		m.set("registerResourceRCC", &registerResourceRCC);
 		
-		
 		m.set("replaceTranslatorFile", &replaceTranslator);
 		m.set("addTraslatorFile", &addTranslator);
 		
@@ -2143,6 +2154,10 @@ namespace platform {
 	}
 };
 
+/*
+	TODO: use funciton template to create global classes and
+	Give every module own sandbox
+*/
 void JSCore::initAll(v8::Isolate * iso) {
 	v8::TryCatch try_catch;
 	//global::init(iso);
@@ -2153,11 +2168,13 @@ void JSCore::initAll(v8::Isolate * iso) {
 		try_catch.ReThrow();
 		return;
 	}
+
 	process::init(iso);
 	if (try_catch.HasCaught()) {
 		try_catch.ReThrow();
 		return;
 	}
+
 	auto nm = native_module::init(iso);
 	if (try_catch.HasCaught()) {
 		try_catch.ReThrow();
