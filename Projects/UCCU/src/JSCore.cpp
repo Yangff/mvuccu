@@ -678,11 +678,14 @@ namespace process {
 		_process.Reset();
 	}
 
-	bool dlopen(const char *fname) {
+	bool dlopen(const char *fname, v8::Handle<v8::Value> _module) {
 		QLibrary lib(fname);
 		if (lib.load()) {
-			lib.resolve("init")();
-			return true;
+			if (auto init = lib.resolve("init")) {
+				typedef bool(*pjsmodule_init)(v8::Handle<v8::Value>);
+				return (pjsmodule_init(init))(_module);
+			}
+			return false;
 		}
 		return false;
 	}

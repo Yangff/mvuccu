@@ -125,7 +125,6 @@ public:
 
 			qInstallMessageHandler(&LogManager::qtMessageHandler);
 		}
-
 		if (!filename.endsWith("cocoa")) {
 			// loading language pack
 			bool b = false;

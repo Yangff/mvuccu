@@ -42,8 +42,13 @@ BOOL WINAPI DllMain(
 			wrapper = new CQt5WrapperV1(o_QTranslator_load, o_qRegisterResourceData, o_qUnregisterResourceData, o_QCoreApplication_setOrganizationDomain);
 
 			if (!match) {
-				SetDllDirectory(L".\\mvuccu");
-				hUCCU = LoadLibrary(L"mvuccu/mvUCCU.dll");
+				size_t len = GetModuleFileName(hinstDLL, buff, 2048);
+				std::wstring::size_type pos = std::wstring(buff, len).find_last_of(L"\\/");
+				std::wstring root = std::wstring(buff).substr(0, pos);
+				std::wstring path = root + L"\\/mvuccu";
+				SetDllDirectory(path.c_str());
+				SetCurrentDirectory(root.c_str());
+				hUCCU = LoadLibrary(L"mvUCCU.dll");
 
 				if (hUCCU) {
 					pInitUCCU initfunc = (pInitUCCU)GetProcAddress(hUCCU, "InitUCCU");
