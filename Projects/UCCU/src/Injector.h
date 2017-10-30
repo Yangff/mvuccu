@@ -17,5 +17,5 @@ public:
 	IQt5Wrapper* Wrapper;
 public:
 	void replaceTranslator(QString original, QString replace);
-	void addTranslator(QString fname);
+	bool addTranslator(QString fname);
 };

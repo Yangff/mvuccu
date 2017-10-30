@@ -92,13 +92,20 @@ static void objectRemoveHook(QObject* o) {
 */
 
 QMap<QString, QString> _repMap;
-QList<QString> _newTrans;
-void Injector::addTranslator(QString fn) {
-	_newTrans.append(fn);
+QMap<QString, QTranslator*> _newTrans;
+bool Injector::addTranslator(QString fn) {
+	if (_repMap.contains(fn))
+		_repMap.erase(_repMap.find(fn));
+	if (!_newTrans.contains(fn))
+		_newTrans[fn] = (new QTranslator());
+	return Injector::instance().Wrapper->Call_QTranslator_load(_newTrans[fn], fn, QString(), QString(), QString());
+	
 }
+
 void Injector::replaceTranslator(QString a, QString b) {
 	_repMap[a] = b;
 }
+
 class WrappedLoad {
 public:
 	bool load(const QString & filename,
@@ -106,6 +113,7 @@ public:
 		const QString & search_delimiters,
 		const QString & suffix) {
 		QString new_name = filename;
+
 		if (_repMap.find(filename) != _repMap.end()) {
 			new_name = _repMap[filename];
 		}
@@ -133,10 +141,12 @@ public:
 			else {
 				b = Injector::instance().Wrapper->Call_QTranslator_load(this, new_name, directory, search_delimiters, suffix);
 			}
-			for (auto x : _newTrans) {
-				if (_repMap.find(x) != _repMap.end())
-					x = _repMap[x];
-				b = Injector::instance().Wrapper->Call_QTranslator_load(this, x, directory, search_delimiters, suffix);
+			for (auto& kv = _newTrans.begin(); kv != _newTrans.end(); kv++) {
+				auto &x = kv.value();
+				if (_repMap.find(kv.key()) != _repMap.end()) {
+					Injector::instance().Wrapper->Call_QTranslator_load(x, kv.key(), QString(), QString(), QString());
+				}
+				QCoreApplication::installTranslator(x);
 			}
 			return b;
 		}
@@ -151,7 +161,7 @@ bool Injector::Init(IQt5Wrapper* wrapper) {
 	wrapper->Set_QTranslator_load(*reinterpret_cast<p_QTranslator_load*>(&addr)); // mdzz
 	wrapper->Set_AfterQCoreApplication_setOrganizationDomain((p_Callback)QApplicationReady);
 	Wrapper = wrapper;
-
+	
 	// step2. init
 	qInstallMessageHandler(&platformQtMessageHandler);
 

@@ -2129,8 +2129,8 @@ namespace platform {
 		Injector::instance().replaceTranslator(org, rep);
 	}
 
-	void addTranslator(const char* fname) {
-		Injector::instance().addTranslator(fname);
+	bool addTranslator(const char* fname) {
+		return Injector::instance().addTranslator(fname);
 	}
 	
 	v8::Handle<v8::Value> init(v8::Isolate *iso) {
