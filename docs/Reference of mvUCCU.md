@@ -1,8 +1,17 @@
 # Reference of mvUCCU
 
+## Before you start
++ All you changes did in the uccu mod will not effect at moment. After all the mod scripts executed, the RPG Maker MV would start to read qt files.
++ Remember that you're modifying or generating QML file using V8. As QML File use ECMAScript as its script, in some cases you are generating ECMAscript in V8 Javascript. distinguish them anytime. In Qt ECMAScript you can't use let, for in, or other modern javascript features.
++ All you operates in uccu mod are qml string, and save as qml string. When you pass an function foo as parameter, it actually pass the foo.toString().
+
 ## nodejs compatible APIs
 
 ### fs
+
+Pay attention fs is NOT default node module `fs`.
+
+use `:/qml` to stand for file path in qt directory. 
 
 cwd = is same as RPGMV.exe at first
 
@@ -180,11 +189,21 @@ Functions
 
 ### modapi
 
+All modapi only operates file inner the qt directory.
+
 Functions,
 
 * get(file)
 
+    Read the file content, and return as Buffer.
+
+    If File doesn't exists, return an empty Buffer.
+
 * update(file, buffer/string)
+
+    If file doesn't exists, Nothing will happen.
+
+    return true if operate success, otherwise return false.
 
 * add(file, buffer/string)
 
@@ -192,15 +211,21 @@ Functions,
 
 * node(code)
 
-  Create a `QmlNode` with code.
+    Create a `QmlNode` with code.
+
+    If `code` is illegal, throw an exception (The whole program may break down).
 
 * doc(code)
 
-  Create a `QmlDocument` with code
+    Create a `QmlDocument` with code
+
+    If `code` is illegal, throw an exception (The whole program may break down).
 
 * qml(file)
 
-  Create a `QmlDocument` with file
+    Create a `QmlDocument` with file
+
+    If `file` doesn't exists, throw an exception (The whole program may break down).
 
 Constant,
 
@@ -230,6 +255,20 @@ Functions,
 
 #### Class QmlNode
 
+What is QmlNode Type
+
+```qml
+QtObject {
+  id: root                        // in names(), def by 'object'
+  property var someProperty: { }  // in names(), not in vars, def by 'property' and 'ret()'
+  onSomeSignal: { }               // in names(), def by 'object'
+  viewName: SomeSubview { }       // in names(), def by 'object'
+  SomeAnnoymousSubview { }        // in obj(), all(), def by 'object'
+  function someFunction() { }     // in names(), all(), def by 'function' 
+}
+```
+*diffrence between obj(), names(), all(), vars() and how to def them.*
+
 Properties,
 
 * vars
@@ -244,7 +283,7 @@ Properties,
 
 Functions,
 
-* obj
+* obj()
 
   Get objects not assigned to field.
 
@@ -254,11 +293,11 @@ Functions,
   }
   ```
 
-* all
+* all()
 
   Get all objects, including those assigned to fields
 
-* names
+* names()
 
   Get all field names
 
@@ -270,6 +309,10 @@ Functions,
 
 * get(name)
 
+  get the `QmlNode`, `QmlRef`, or `RawCode` of `name` target.
+
+  if `name` doesn't exists, return `null`.
+
 * ref(name)
 
   Create a reference of field `name`
@@ -280,11 +323,11 @@ Functions,
 
 * clr(name)
 
-  remove value of name
+  remove value of name.
 
 * set(name, value)
 
-  set value of name
+  set value of name.
 
   return reference of this field.
 
@@ -296,7 +339,19 @@ Functions,
 
 * _default(name [, val])
 
+  Get or set default value of `name` val.
+
+  if `name` val doesn't exists, for getter, return `false`.
+
+  setter always return `this`, no matter `name` property exist or not.
+
 * readonly(name [, val])
+
+  Get or set readonly or not of `name` val.
+
+  if `name` val doesn't exists, for getter, return `false`.
+
+  setter always return `this`, no matter `name` property exist or not.
 
 * info(name)
 
@@ -312,21 +367,37 @@ Functions,
   }
   ```
 
-* ret(name[, value])
+* ret(name[, val])
 
-* add(object)
+  Get or set returning type of `name` property.
 
-* addBefore(object)
+  if `name` property doesn't exists, for getter, return `empty string`.
+
+  setter always return `this`, no matter `name` property exist or not.
+
+* add(qmlNode)
+
+  Add child node to current node.
+
+  return `this`.
+
+* addBefore(qmlNode)
 
   `x.addBefore` will add object to **parent of `x`** before the object `x`.
+
+  return `this`.
 
 * makeObject(name)
 
   mark `name` object, that it to say `xxx: YYY {...}` for qml
 
-* makeProperty
+  return `this`.
 
-  mark `name` property
+* makeProperty(name, ret)
+
+  make `name` property
+
+  return `this`.
 
 * kill
 
@@ -336,21 +407,31 @@ Functions,
 
   remove children by name
 
+  return `this`.
+
 * getObjectById(id [, max_deep])
 
   recursively find a object have `id: xxx`
+
+  if not exists, return `null`.
 
 * getObjectsByType(type [, max_deep])
 
   recursively find objects have given `type`
 
+  return Array.
+
 * getValueByName(name [, max_deep])
 
   recursively find references of given `name`
 
+  return Array of QmlRef.
+
 * select(field, value [, max_deep])
 
   find all objects `x` have `x[field]=value`
+
+  return Array of QmlRef.
 
 #### Class QmlRef
 
@@ -393,7 +474,7 @@ Both `fs.read` and `ModAPI.get` can read file inside qt package. However, their 
 3. After `ModAPI.update`, we will cache your modify, but not write them to qt package instantly. Others won't be able to read the modified qml file by `fs.read`. While `ModAPI.get` will search in the cache first. So, if you want the original version of some qml file, you should use `fs.readFileSync`, or you can use `ModAPI.get` to read qml modified by other mods. But you should always use `ModAPI.update` for modifying qml file. 
 4. `ModAPI`'s root folder is `:/qml/`, for example, you can use `Main/MainWindow.qml` to get `:/qml/Main/MainWindow.qml`.
 
-### buffer
+### Buffer
 
 `Buffer` is used for holding `QByteArray`. It prevent the type convert between `QByteArray` and `v8::String` .
 
