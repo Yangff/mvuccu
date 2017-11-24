@@ -339,7 +339,7 @@ Functions,
 
 * _default(name [, val])
 
-  Get or set defau1lt value of `name` val.
+  Get or set default value of `name` val.
 
   if `name` val doesn't exists, for getter, return `false`.
 
