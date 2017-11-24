@@ -3,7 +3,7 @@
 ## Before you start
 + All you changes did in the uccu mod will not effect at moment. After all the mod scripts executed, the RPG Maker MV would start to read qt files.
 + Remember that you're modifying or generating QML file using V8. As QML File use ECMAScript as its script, in some cases you are generating ECMAscript in V8 Javascript. distinguish them anytime. In Qt ECMAScript you can't use let, for in, or other modern javascript features.
-+ All you operates in uccu mod is qml string, and save as qml string. When you pass an function foo as parameter, it actually pass the foo.toString().
++ All you operates in uccu mod are qml string, and save as qml string. When you pass an function foo as parameter, it actually pass the foo.toString().
 
 ## nodejs compatible APIs
 
@@ -195,13 +195,15 @@ Functions,
 
 * get(file)
 
-  Read the file content, and return as Buffer.
+    Read the file content, and return as Buffer.
 
-  If File doesn't exists, 
+    If File doesn't exists, return an empty Buffer.
 
 * update(file, buffer/string)
 
-    If file doesn't exists,
+    If file doesn't exists, Nothing will happen.
+
+    return true if operate success, otherwise return false.
 
 * add(file, buffer/string)
 
@@ -209,21 +211,21 @@ Functions,
 
 * node(code)
 
-  Create a `QmlNode` with code.
+    Create a `QmlNode` with code.
 
-    If Code is illegal, 
+    If `code` is illegal, throw an exception (The whole program may break down).
 
 * doc(code)
 
-  Create a `QmlDocument` with code
-  
-    If code is illegal, throw an exception.
+    Create a `QmlDocument` with code
+
+    If `code` is illegal, throw an exception (The whole program may break down).
 
 * qml(file)
 
-  Create a `QmlDocument` with file
+    Create a `QmlDocument` with file
 
-    If file doesn't exists, throw an exception.
+    If `file` doesn't exists, throw an exception (The whole program may break down).
 
 Constant,
 
@@ -255,20 +257,17 @@ Functions,
 
 What is QmlNode Type
 
-In the example code
-
 ```qml
 QtObject {
-  id: root
-  property var someProperty: { }
-  onSomeSignal: { }
-  viewName: SomeSubview { }
-  SomeAnnoymousSubview { }
-  function someFunction() { }
+  id: root                        // in names(), def by 'object'
+  property var someProperty: { }  // in names(), not in vars, def by 'property' and 'ret()'
+  onSomeSignal: { }               // in names(), def by 'object'
+  viewName: SomeSubview { }       // in names(), def by 'object'
+  SomeAnnoymousSubview { }        // in obj(), all(), def by 'object'
+  function someFunction() { }     // in names(), all(), def by 'function' 
 }
 ```
-
-**FIXME: WRITE DOWN WHAT FUNCTION CAN SEARCH AND OPERATE THEM.**
+*diffrence between obj(), names(), all(), vars() and how to def them.*
 
 Properties,
 
@@ -340,7 +339,7 @@ Functions,
 
 * _default(name [, val])
 
-  Get or set default value of `name` val.
+  Get or set defau1lt value of `name` val.
 
   if `name` val doesn't exists, for getter, return `false`.
 
